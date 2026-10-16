@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------
+   Danny Cyruz: "sunlit editorial" design system
+   White paper, near-black ink, one confident yellow used like a
+   highlighter pen: underlines, offset blocks, buttons, small marks.
+------------------------------------------------------------------- */
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { @apply bg-paper text-ink font-sans antialiased; }
+  ::selection { background: #ffc800; color: #111; }
+  :focus-visible { outline: 2px solid #111; outline-offset: 3px; }
+  label { @apply block text-[11px] font-medium uppercase tracking-[0.2em] text-stone-600; }
+}
+
+@layer components {
+  /* Buttons: sharp corners, wide tracking, arrow that slides on hover */
+  .btn {
+    @apply inline-flex items-center justify-center gap-3 px-8 py-4 text-[12px] font-medium uppercase tracking-[0.18em]
+           transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn::after { content: "\2192"; transition: transform 0.3s; }
+  .btn:hover::after { transform: translateX(5px); }
+  .btn-dark { @apply btn bg-sun text-ink hover:bg-ink hover:text-sun; }
+  .btn-line { @apply btn border border-current hover:border-sun hover:bg-sun hover:text-ink; }
+
+  /* Type helpers */
+  .display { @apply font-serif font-medium leading-[0.98] tracking-tight; }
+  .eyebrow { @apply inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-stone-600; }
+  .eyebrow::before { content: ""; width: 2rem; height: 2px; background: #ffc800; }
+
+  /* Highlighter pen behind a word or phrase in a heading */
+  .marker {
+    background-image: linear-gradient(transparent 60%, #ffc800 60%, #ffc800 90%, transparent 90%);
+    padding: 0 0.08em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  /* Photo with a yellow block offset behind it. Parent must not clip overflow. */
+  .frame { position: relative; isolation: isolate; }
+  .frame::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; background: #ffc800;
+    transform: translate(14px, 14px); transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .frame:hover::before { transform: translate(22px, 22px); }
+
+  /* Slow zoom on hover for image cards */
+  .zoom { overflow: hidden; }
+  .zoom img { transition: transform 1.2s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .zoom:hover img { transform: scale(1.05); }
+
+  /* Animated underline for text links */
+  .link-line {
+    background: linear-gradient(#ffc800, #ffc800) 0 100% / 0 2px no-repeat;
+    padding-bottom: 3px; transition: background-size 0.4s;
+  }
+  .link-line:hover { background-size: 100% 2px; }
+
+  .hairline { border-top: 1px solid rgba(17, 17, 17, 0.12); }
+
+  /* Editorial form fields: underline only, yellow glow on focus */
+  .field {
+    @apply w-full border-0 border-b border-ink/25 bg-transparent px-0 py-3 text-base normal-case tracking-normal text-ink outline-none transition-all;
+  }
+  .field:focus { border-color: #111; box-shadow: 0 2px 0 0 #ffc800; }
+  .field-error { @apply border-red-700; }
+
+  /* Scrolling category strip */
+  .marquee { overflow: hidden; }
+  .marquee-track { display: flex; width: max-content; animation: marquee 45s linear infinite; }
+  .marquee:hover .marquee-track { animation-play-state: paused; }
+}
+
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+/* Scroll reveal with zero JavaScript (progressive enhancement) */
+@keyframes reveal { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
+@supports (animation-timeline: view()) {
+  .reveal { animation: reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 40%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
