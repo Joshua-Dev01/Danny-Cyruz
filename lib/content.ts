@@ -1,43 +1,199 @@
-// Single place to edit brand, services and prices. Later these can be read from Supabase instead.
-export const DEPOSIT_NGN = 5500; // paid first to secure any booking
-
 export const site = {
   name: "Danny Cyruz",
-  tagline: "Capturing Moments. Creating Memories.",
   intro:
-    "Honest, light-led photography for weddings, portraits, events and brands. I slow things down so the people in front of the camera can simply be themselves.",
-  phone: "+234 000 000 0000",
-  email: "hello@dannycyruz.com",
-  whatsapp: "https://wa.me/2340000000000",
-  address: "Studio address, City, Nigeria",
-  hours: "Mon to Sat, 9am to 6pm",
-  social: { instagram: "https://instagram.com/", facebook: "https://facebook.com/", x: "https://x.com/" },
+    "Unhurried, light-led photography and film for weddings, portraits, events and brands in Lagos, Abuja and beyond.",
+  address: "Lagos and Abuja, Nigeria",
+  hours: "By appointment",
+  phone: "+234 704 777 7986",
+  phone2: "+234 702 626 5336",
+  email: "dannycyruz69@gmail.com",
+  whatsapp: "https://wa.me/2347047777986",
+  tagline: "Capturing the magic, one frame at a time.",
+  social: {
+    instagram: "https://instagram.com/dannycyruz",
+  },
 };
 
-const img = (seed: string, w = 1200, h = 1600) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
+export const DEPOSIT_NGN = 5500;
+
+const imageUrls: Record<string, string> = {
+  "dc-hero":
+    "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1200&h=1500&q=80",
+  "dc-r1":
+    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&h=1200&q=80",
+  "dc-r2":
+    "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&h=1100&q=80",
+  "dc-r3":
+    "https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&w=1000&h=800&q=80",
+  "dc-r4":
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&h=1300&q=80",
+  "dc-r5":
+    "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=900&h=1000&q=80",
+  "dc-r6":
+    "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&h=1200&q=80",
+  "dc-d1":
+    "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&h=1100&q=80",
+  "dc-d2":
+    "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=800&h=1100&q=80",
+  "dc-d3":
+    "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=800&h=1100&q=80",
+  "dc-d4":
+    "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&h=1100&q=80",
+  "dc-s1":
+    "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=900&h=1100&q=80",
+  "dc-s2":
+    "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&h=1100&q=80",
+  "dc-s3":
+    "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=900&h=1100&q=80",
+  "dc-s4":
+    "https://images.unsplash.com/photo-1521119989659-a83eee488004?auto=format&fit=crop&w=900&h=1100&q=80",
+};
+
+export function img(name: string, width: number, height: number) {
+  const url =
+    imageUrls[name] ??
+    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1";
+  return `${url}&w=${width}&h=${height}`;
+}
 
 export const images = {
-  hero: img("dc-hero", 2400, 1400),
+  hero: "/hero.jpg",
   about: img("dc-portrait", 1000, 1300),
-  featured: [img("dc-f1", 1400, 1000), img("dc-f2", 900, 1200), img("dc-f3", 900, 1200), img("dc-f4", 1400, 1000)],
+  featured: [
+    img("dc-f1", 1400, 1000),
+    img("dc-f2", 900, 1200),
+    img("dc-f3", 900, 1200),
+    img("dc-f4", 1400, 1000),
+  ],
 };
 
+export const frames = [
+  { src: "/1img.jpeg", title: "Lagos atelier", meta: "Portrait" },
+  { src: "/2img.jpeg", title: "Eko nuptials", meta: "Wedding" },
+  { src: "/3img.jpeg", title: "Golden hour", meta: "Portrait" },
+  { src: "/4img.jpeg", title: "Ikoyi morning", meta: "Wedding" },
+  { src: "/hero.jpeg", title: "Soundstage", meta: "Event" },
+  { src: "/hero2.jpeg", title: "Still life", meta: "Commercial" },
+];
+export const disciplines = [
+  {
+    name: "Weddings",
+    note: "Quiet, unposed documentation",
+    image: img("dc-d1", 800, 1100),
+  },
+  {
+    name: "Films",
+    note: "Short films and highlight reels",
+    image: img("dc-d2", 800, 1100),
+  },
+  {
+    name: "Portraits",
+    note: "Personal, family and editorial",
+    image: img("dc-d3", 800, 1100),
+  },
+  {
+    name: "Studio",
+    note: "Daylight space, hire by the hour",
+    image: img("dc-d4", 800, 1100),
+  },
+];
+
 export type Service = {
-  slug: string; name: string; blurb: string; image: string;
-  from: number; // naira, placeholder
-  includes: string[];
+  slug: string;
+  name: string;
+  note?: string;
+  image: string;
+  from: number; // lowest price, used on the home page
+  options: { label: string; price: number }[];
 };
 
 export const services: Service[] = [
-  { slug: "wedding", name: "Weddings", blurb: "Full-day coverage from getting ready to the last dance.", image: img("dc-s1"), from: 350000, includes: ["Full-day coverage", "Edited online gallery", "Second shooter available"] },
-  { slug: "portrait", name: "Portraits", blurb: "Personal, family and graduation sessions, indoors or on location.", image: img("dc-s2"), from: 60000, includes: ["1 hour session", "15 edited photos", "Two outfit changes"] },
-  { slug: "event", name: "Birthdays & Events", blurb: "Candid coverage of the moments guests will want to remember.", image: img("dc-s3"), from: 90000, includes: ["Up to 4 hours", "Edited online gallery", "Same-week previews"] },
-  { slug: "studio", name: "Studio Sessions", blurb: "Controlled lighting and seamless backdrops for clean, bold results.", image: img("dc-s4"), from: 45000, includes: ["Studio time included", "Backdrop of your choice", "10 edited photos"] },
-  { slug: "fashion-commercial", name: "Fashion & Commercial", blurb: "Lookbooks, campaigns and product work for brands.", image: img("dc-s5"), from: 150000, includes: ["Creative direction call", "Retouched final images", "Usage licence"] },
+  {
+    slug: "children",
+    name: "Children",
+    note: "Ages 2 to 12",
+    image: img("dc-s1", 800, 600),
+    from: 6500,
+    options: [
+      { label: "3 pictures", price: 17000 },
+      { label: "1 picture", price: 6500 },
+    ],
+  },
+  {
+    slug: "one-year-old",
+    name: "One Year Old",
+    image: img("dc-s2", 800, 600),
+    from: 8000,
+    options: [
+      { label: "3 pictures", price: 22000 },
+      { label: "1 picture", price: 8000 },
+    ],
+  },
+  {
+    slug: "adults",
+    name: "Adults",
+    image: img("dc-s3", 800, 600),
+    from: 7500,
+    options: [
+      { label: "3 pictures", price: 20000 },
+      { label: "1 picture", price: 7500 },
+    ],
+  },
+  {
+    slug: "studio",
+    name: "Space Rental",
+    image: img("dc-s4", 800, 600),
+    from: 20000,
+    options: [
+      { label: "1 hour", price: 40000 },
+      { label: "30 minutes", price: 20000 },
+    ],
+  },
+];
+export const steps = [
+  {
+    title: "Tell us the date",
+    text: "Pick a service and a day. The form takes two minutes.",
+  },
+  {
+    title: "Secure it",
+    text: `A ₦${DEPOSIT_NGN.toLocaleString()} deposit holds your date. The balance is due on the day.`,
+  },
+  {
+    title: "Show up as you are",
+    text: "We guide you through the shoot. Previews arrive within a week.",
+  },
 ];
 
 export const testimonials = [
-  { name: "Client name", role: "Wedding, 2026", quote: "Danny made us feel completely at ease. We forgot the camera was there, and the photos still feel like us." },
-  { name: "Client name", role: "Brand shoot", quote: "Clear communication, fast delivery and images that lifted our whole campaign." },
-  { name: "Client name", role: "Portrait session", quote: "I usually hate being photographed. These are the first photos of myself I love." },
+  {
+    quote:
+      "Danny made our wedding feel effortless, cinematic and deeply personal.",
+    name: "Amaka & Tobi",
+    role: "Wedding clients",
+  },
+  {
+    quote: "Every frame felt like us — honest, warm and beautifully composed.",
+    name: "Mariam A.",
+    role: "Portrait client",
+  },
+];
+
+export const videos = [
+  // A video file you put in the public folder
+  {
+    src: "/videos/wedding-highlight.mp4",
+    poster: "/videos/wedding-highlight.jpg",
+    title: "Eko nuptials",
+    meta: "Wedding film",
+  },
+  // A YouTube video: paste only the ID (the part after v= in the link)
+  { youtube: "dQw4w9WgXcQ", title: "Lekki soundstage", meta: "Event" },
+  // A vertical video (reel style)
+  {
+    src: "/videos/reel-1.mp4",
+    title: "Studio session",
+    meta: "Studio",
+    vertical: true,
+  },
 ];

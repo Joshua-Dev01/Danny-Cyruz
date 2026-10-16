@@ -24,14 +24,11 @@
   }
   .btn::after { content: "\2192"; transition: transform 0.3s; }
   .btn:hover::after { transform: translateX(5px); }
-  .btn-dark { @apply btn bg-sun text-ink hover:bg-ink hover:text-sun; }
-  .btn-line { @apply btn border border-current hover:border-sun hover:bg-sun hover:text-ink; }
-
+.btn-dark { @apply btn bg-[#C08614] text-white shadow-[0_10px_30px_-12px_rgba(192,134,20,0.7)] hover:bg-ink hover:text-[#C08614] hover:shadow-none; }
   /* Type helpers */
   .display { @apply font-serif font-medium leading-[0.98] tracking-tight; }
-  .eyebrow { @apply inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-stone-600; }
-  .eyebrow::before { content: ""; width: 2rem; height: 2px; background: #ffc800; }
-
+  .eyebrow { @apply inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-stone-600; }
+  .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; background: #ffc800; }
   /* Highlighter pen behind a word or phrase in a heading */
   .marker {
     background-image: linear-gradient(transparent 60%, #ffc800 60%, #ffc800 90%, transparent 90%);
@@ -77,6 +74,12 @@
 
 @keyframes marquee { to { transform: translateX(-50%); } }
 
+@keyframes settle { from { opacity: 0; transform: scale(1.06); clip-path: inset(0 0 12% 0); } to { opacity: 1; transform: none; clip-path: inset(0); } }
+.hero-img { animation: settle 1.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.plate { @apply mt-3 flex justify-between text-[11px] tracking-[0.12em] text-stone-600; }
+.disc img { filter: grayscale(1) contrast(1.05); transition: filter 0.8s, transform 1.2s cubic-bezier(0.2,0.7,0.2,1); }
+.disc:hover img { filter: none; transform: scale(1.05); }
+
 /* Scroll reveal with zero JavaScript (progressive enhancement) */
 @keyframes reveal { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
 @supports (animation-timeline: view()) {
@@ -87,3 +90,13 @@
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+
+
+/* Recent work: cards rise in when the filter changes, viewer fades and zooms */
+@keyframes cardIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.work-card { animation: cardIn 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fadeIn 0.35s ease both; }
+@keyframes zoomIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+.zoom-in { animation: zoomIn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }

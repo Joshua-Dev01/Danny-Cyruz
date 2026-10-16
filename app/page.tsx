@@ -2,154 +2,147 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Photo from "@/components/Photo";
-import { site, images, services, testimonials, DEPOSIT_NGN } from "@/lib/content";
-
-const categories = ["Weddings", "Portraits", "Events", "Fashion", "Commercial", "Studio hire"];
+import {
+  site,
+  frames,
+  disciplines,
+  services,
+  testimonials,
+  DEPOSIT_NGN,
+} from "@/lib/content";
+import RecentWork from "@/components/RecentWork";
 
 export default function Home() {
-  const [f1, f2, f3, f4] = images.featured;
   const studio = services.find((s) => s.slug === "studio")!;
-
   return (
     <>
+      <Navbar />
+
       {/* HERO */}
-      <section className="relative h-[100svh] min-h-[620px] bg-ink text-white">
-        <Photo src={images.hero} alt="Featured photograph" className="absolute inset-0 opacity-75" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/35" />
-        <Navbar overHero />
-        <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-end px-5 pb-14 md:px-10 md:pb-20">
-          <p className="eyebrow !text-white/80">Photographer &amp; studio</p>
-          <h1 className="display mt-6 max-w-5xl animate-rise text-[2.9rem] md:text-[7.5rem]">
-            Capturing <em className="text-sun">moments.</em>
-            <br />
-            Creating memories.
+      {/* HERO */}
+      <section className="mx-auto grid max-w-7xl items-center gap-10 px-5 pb-12 pt-32 md:grid-cols-12 md:gap-8 md:px-10 md:pb-16 md:pt-40">
+        <div className="md:col-span-5">
+          <h1 className="display font-sans animate-rise text-[3.1rem] leading-[1] md:text-[4.2rem]">
+            Moments, beautifully kept.
           </h1>
-          <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-            <p className="max-w-md text-base text-white/85">{site.intro}</p>
-            <div className="flex flex-wrap gap-4">
-              <Link href="/portfolio" className="btn-dark">Explore Portfolio</Link>
-              <Link href="/book" className="btn-line">Book a Photoshoot</Link>
-            </div>
+          <p className="mt-5 max-w-sm text-stone-600">
+            Photography and film in Onitsha Anambra.
+          </p>
+          <div className="mt-7 flex flex-wrap items-center gap-6">
+            <Link href="/book" className="btn-dark">
+              Book your date
+            </Link>
+            <Link
+              href="/portfolio"
+              className="link-line text-[12px] uppercase tracking-[0.18em]"
+            >
+              Portfolio
+            </Link>
           </div>
         </div>
-      </section>
 
-      {/* CATEGORY STRIP */}
-      <div className="marquee bg-sun py-5 text-ink" aria-hidden>
-        <div className="marquee-track">
-          {[0, 1].map((n) => (
-            <div key={n} className="flex shrink-0 items-center">
-              {categories.map((c) => (
-                <span key={c + n} className="flex items-center font-serif text-3xl italic md:text-4xl">
-                  <span className="px-8">{c}</span>
-                  <span className="text-xl not-italic">✦</span>
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* STATEMENT */}
-      <section className="mx-auto max-w-7xl px-5 py-24 md:px-10 md:py-36">
-        <p className="eyebrow">The approach</p>
-        <p className="display reveal mt-8 max-w-5xl text-3xl md:text-6xl">
-          I photograph people as they are, in <span className="marker">honest light</span>, so the pictures still feel true
-          years from now.
-        </p>
-      </section>
-
-      {/* SELECTED WORK */}
-      <section className="mx-auto max-w-7xl px-5 pb-24 md:px-10 md:pb-36">
-        <div className="mb-14 flex items-end justify-between gap-6">
-          <div>
-            <p className="eyebrow">01 · Selected work</p>
-            <h2 className="display mt-5 text-4xl md:text-7xl">Recent <em>stories</em></h2>
-          </div>
-          <Link href="/portfolio" className="link-line hidden text-[12px] font-medium uppercase tracking-[0.18em] md:inline">View all work</Link>
-        </div>
-        <div className="grid gap-5 md:grid-cols-12 md:gap-8">
-          <figure className="zoom reveal aspect-[7/5] md:col-span-8"><Photo src={f1} alt="Wedding photograph" /></figure>
-          <figure className="frame reveal aspect-[3/4] md:col-span-4 md:mt-28 md:mr-4"><Photo src={f2} alt="Portrait photograph" /></figure>
-          <figure className="zoom reveal aspect-[3/4] md:col-span-4 md:-mt-20"><Photo src={f3} alt="Fashion photograph" /></figure>
-          <figure className="zoom reveal aspect-[7/5] md:col-span-8"><Photo src={f4} alt="Event photograph" /></figure>
+        <div className="relative h-[380px] md:col-span-7 md:h-[470px]">
+         <div className="absolute right-[8%] top-[6%] h-[42%] w-[42%] bg-[#C08614] md:right-[4%]" aria-hidden />
+          <figure className="hero-img absolute left-0 top-0 h-[80%] w-[56%] shadow-[0_30px_60px_-30px_rgba(0,0,0,0.45)]">
+            <Photo
+              src="/hero.jpeg"
+              alt="Bride in white by a stone archway"
+              className="object-top"
+            />
+          </figure>
+          <figure
+            className="hero-img absolute bottom-0 right-0 h-[76%] w-[48%] border-[6px] border-white shadow-[0_30px_60px_-30px_rgba(0,0,0,0.45)] md:border-[8px]"
+            style={{ animationDelay: "0.35s" }}
+          >
+            <Photo
+              src="/hero2.jpeg"
+              alt="Portrait session"
+              className="object-top"
+            />
+          </figure>
         </div>
       </section>
+
+      {/* RECENT FRAMES */}
+    <RecentWork />
 
       {/* SERVICES */}
-      <section className="bg-sun-pale py-24 md:py-36">
+      <section className="bg-sun-pale py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-5 md:px-10">
-          <p className="eyebrow">02 · Services</p>
-          <h2 className="display mt-5 text-4xl md:text-7xl">What I <em>shoot</em></h2>
-          <div className="mt-16 grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
-            {services.map((s, i) => (
-              <Link key={s.slug} href={`/services#${s.slug}`} className="reveal group block">
-                <div className="zoom aspect-[4/5]"><Photo src={s.image} alt={s.name} /></div>
-                <div className="mt-5 flex items-baseline justify-between gap-4 border-b border-ink/15 pb-4">
-                  <h3 className="font-serif text-3xl">{s.name}</h3>
-                  <span className="text-[11px] tracking-[0.2em] text-stone-400">0{i + 1}</span>
+          <h2 className="display text-4xl md:text-6xl">Services</h2>
+          <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-8">
+            {disciplines.map((d) => (
+              <Link key={d.name} href="/services" className="disc block">
+                <div className="zoom aspect-[3/4]">
+                  <Photo src={d.image} alt={d.name} />
                 </div>
-                <p className="mt-4 max-w-sm text-sm text-stone-600">{s.blurb}</p>
+                <h3 className="mt-4 font-serif text-2xl">{d.name}</h3>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ABOUT */}
-      <section className="mx-auto grid max-w-7xl items-center gap-16 px-5 py-24 md:grid-cols-2 md:gap-24 md:px-10 md:py-36">
-        <div className="frame reveal aspect-[4/5] md:mr-4"><Photo src={images.about} alt={`Portrait of ${site.name}`} /></div>
-        <div className="reveal">
-          <p className="eyebrow">03 · The photographer</p>
-          <h2 className="display mt-5 text-4xl md:text-6xl">Meet <span className="marker">{site.name}</span></h2>
-          <p className="mt-8 max-w-lg text-stone-600">
-            Replace this with Danny&apos;s story: how he started, what he looks for in a frame, and why people trust him
-            with their biggest days.
-          </p>
-          <Link href="/about" className="btn-line mt-10">Read the story</Link>
-        </div>
-      </section>
-
-      {/* STUDIO HIRE */}
-      <section className="bg-sun text-ink">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 py-20 md:grid-cols-2 md:gap-20 md:px-10 md:py-28">
-          <div className="reveal">
-            <p className="eyebrow !text-ink">04 · The studio</p>
-            <h2 className="display mt-5 text-4xl md:text-7xl">Hire the <em>studio</em></h2>
-            <p className="mt-6 max-w-md text-ink/80">
-              Seamless backdrops, studio lighting and room for your whole team. Book it with Danny behind the camera, or on
-              its own.
-            </p>
-            <Link href="/book?service=Studio%20Sessions" className="btn mt-10 bg-ink text-white hover:bg-white hover:text-ink">Reserve the studio</Link>
+      {/* STUDIO */}
+      <section className="bg-ink text-white">
+        <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-20 md:grid-cols-2 md:gap-20 md:px-10 md:py-28">
+          <div className="zoom aspect-[5/4]">
+            <Photo src={studio.image} alt="Photography studio" />
           </div>
-          <div className="zoom reveal aspect-[5/4]"><Photo src={studio.image} alt="The studio" /></div>
+          <div>
+            <h2 className="display text-4xl md:text-6xl">Hire the studio</h2>
+            <p className="mt-5 font-serif text-2xl">
+              From ₦{studio.from.toLocaleString()}
+            </p>
+            <Link
+              href="/book?service=Studio%20Sessions"
+              className="btn-dark mt-8"
+            >
+              Reserve
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section className="mx-auto max-w-7xl px-5 py-24 md:px-10 md:py-36">
-        <p className="eyebrow">05 · Kind words</p>
-        <div className="mt-14 grid gap-12 md:grid-cols-3 md:gap-0">
-          {testimonials.map((t, i) => (
-            <blockquote key={i} className={`reveal md:px-10 ${i > 0 ? "md:border-l md:border-ink/15" : "md:pl-0"}`}>
-              <span className="font-serif text-7xl leading-none text-sun" aria-hidden>“</span>
-              <p className="font-serif text-2xl leading-snug">{t.quote}</p>
-              <footer className="mt-6 text-[11px] uppercase tracking-[0.2em] text-stone-600">{t.name} · {t.role}</footer>
-            </blockquote>
-          ))}
-        </div>
+      {/* TESTIMONIAL */}
+      <section className="mx-auto max-w-4xl px-5 py-20 text-center md:py-28">
+        <blockquote className="font-serif text-3xl italic leading-snug md:text-5xl">
+          “{testimonials[0].quote}”
+        </blockquote>
+        <p className="mt-6 text-sm text-stone-600">{testimonials[0].name}</p>
       </section>
 
-      {/* FINAL CTA */}
-      <section className="hairline px-5 py-28 text-center md:py-44">
-        <h2 className="display reveal mx-auto max-w-4xl text-5xl md:text-8xl">
-          Let&apos;s make something <span className="marker">worth keeping.</span>
-        </h2>
-        <p className="mt-8 text-stone-600">A ₦{DEPOSIT_NGN.toLocaleString()} deposit secures your date.</p>
-        <Link href="/book" className="btn-dark mt-10">Book a Session</Link>
+      {/* CTA */}
+      <section className="bg-sun px-5 py-20 text-center md:py-28">
+        <h2 className="display text-5xl md:text-7xl">Hold your date.</h2>
+        <p className="mt-5">
+          ₦{DEPOSIT_NGN.toLocaleString()} deposit secures any booking.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-4">
+          <Link
+            href="/book"
+            className="btn bg-ink text-white hover:bg-white hover:text-ink"
+          >
+            Book a session
+          </Link>
+          <a
+            href={site.whatsapp}
+            className="btn border border-ink hover:bg-ink hover:text-white"
+          >
+            WhatsApp
+          </a>
+        </div>
       </section>
 
       <Footer />
+
+      <a
+        href={site.whatsapp}
+        aria-label="Chat on WhatsApp"
+        className="fixed bottom-5 right-5 z-30 bg-ink px-5 py-3 text-[11px] uppercase tracking-[0.18em] text-white shadow-lg transition hover:bg-sun hover:text-ink"
+      >
+        WhatsApp
+      </a>
     </>
   );
 }

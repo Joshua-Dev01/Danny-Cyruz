@@ -10,6 +10,13 @@ const sans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "700"], variab
 export const metadata: Metadata = {
   title: `${site.name} | Photographer & Studio`,
   description: site.intro,
+  icons: {
+    icon: [
+      { url: "/logo.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
