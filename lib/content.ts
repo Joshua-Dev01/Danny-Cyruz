@@ -101,53 +101,125 @@ export const disciplines = [
 export type Service = {
   slug: string;
   name: string;
-  note?: string;
+  series: string;
+  subtitle: string;
+  blurb: string;
   image: string;
+  plate: string;
   from: number; // lowest price, used on the home page
-  options: { label: string; price: number }[];
+  packages: { tag: string; price: number; title: string; detail: string }[];
+  footnote: string;
+  cta: string;
 };
 
 export const services: Service[] = [
   {
     slug: "children",
     name: "Children",
-    note: "Ages 2 to 12",
-    image: img("dc-s1", 800, 600),
+    series: "Service series 01 • Lekki & Abuja",
+    subtitle: "Ages 2 to 12 years old",
+    blurb:
+      "Gentle, unhurried portraiture designed to capture authentic childhood character. Natural postures, soft studio glow, and timeless styling guidance.",
+    image: img("dc-s1", 900, 1100),
+    plate: "Plate 01 // Tri-X 400 • 80mm f/2.8",
     from: 6500,
-    options: [
-      { label: "3 pictures", price: 17000 },
-      { label: "1 picture", price: 6500 },
+    packages: [
+      {
+        tag: "Package 01",
+        price: 17000,
+        title: "3 Master Retouched Pictures",
+        detail: "High-resolution print master + online gallery",
+      },
+      {
+        tag: "Package 02",
+        price: 6500,
+        title: "1 Master Retouched Picture",
+        detail: "Signature fine art edit & digital transfer",
+      },
     ],
+    footnote: "Includes digital high-res exports • 48H delivery window", // CHECK delivery time
+    cta: "Book this service",
   },
   {
     slug: "one-year-old",
     name: "One Year Old",
-    image: img("dc-s2", 800, 600),
+    series: "Service series 02 • Milestone edition",
+    subtitle: "First milestone celebration",
+    blurb:
+      "Calm, baby-friendly studio cadence. Temperature-regulated atelier, soft muslin textures, and tactile props yielding heirloom frames you will keep forever.",
+    image: img("dc-s2", 900, 1100),
+    plate: "Plate 02 // Portra 400 • 80mm f/1.8",
     from: 8000,
-    options: [
-      { label: "3 pictures", price: 22000 },
-      { label: "1 picture", price: 8000 },
+    packages: [
+      {
+        tag: "Package 01",
+        price: 22000,
+        title: "3 Master Retouched Pictures",
+        detail: "Multiple baby wardrobe changes & parents inclusion",
+      },
+      {
+        tag: "Package 02",
+        price: 8000,
+        title: "1 Master Retouched Picture",
+        detail: "Clean minimalist fine-art solo vignette",
+      },
     ],
+    footnote: "Quiet environment • Warm organic studio settings",
+    cta: "Book this service",
   },
   {
     slug: "adults",
     name: "Adults",
-    image: img("dc-s3", 800, 600),
+    series: "Service series 03 • Editorial & studio",
+    subtitle: "Editorial & fine art portraiture",
+    blurb:
+      "Elevated, quiet personal monographs for artists, executives, and fashion patrons. Precision key lighting and thoughtful creative direction.",
+    image: img("dc-s3", 900, 1100),
+    plate: "Plate 03 // Ilford HP5 • 60mm Rembrandt",
     from: 7500,
-    options: [
-      { label: "3 pictures", price: 20000 },
-      { label: "1 picture", price: 7500 },
+    packages: [
+      {
+        tag: "Package 01",
+        price: 20000,
+        title: "3 Master Retouched Pictures",
+        detail: "High-end skin finishing & editorial color grading",
+      },
+      {
+        tag: "Package 02",
+        price: 7500,
+        title: "1 Master Retouched Picture",
+        detail: "Standout portfolio or monograph headshot",
+      },
     ],
+    footnote: "Includes private client proofing gallery access",
+    cta: "Book this service",
   },
   {
     slug: "studio",
     name: "Space Rental",
-    image: img("dc-s4", 800, 600),
-    from: 20000,
-    options: [
-      { label: "1 hour", price: 40000 },
-      { label: "30 minutes", price: 20000 },
+    series: "Service series 04 • Soundstage & natural light",
+    subtitle: "Creative studio facility",
+    blurb:
+      "Expansive daylight photography studio and blackout space equipped with continuous lighting, C-stands, white cyclorama cove, and private vanity rooms.", // CHECK equipment
+    image: img("dc-s4", 900, 1100),
+    plate: "Daylight bay // 4,000 sq ft Lekki loft",
+    from: 20000, // CHECK size and place
+    packages: [
+      {
+        tag: "Standard hire",
+        price: 40000,
+        title: "1 Hour Studio Access",
+        detail: "Full lighting grid, backdrops, and dressing suite",
+      },
+      {
+        tag: "Express session",
+        price: 20000,
+        title: "30 Minutes Studio Access",
+        detail: "Rapid lookbooks, quick reels & product drops",
+      },
     ],
+    footnote: "Lekki Phase 1, Lagos • Maitama Quarters, Abuja", // CHECK addresses
+    cta: "Reserve space",
   },
 ];
 export const steps = [
