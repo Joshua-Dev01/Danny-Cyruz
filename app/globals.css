@@ -4,14 +4,13 @@
 
 /* ------------------------------------------------------------------
    Danny Cyruz: "sunlit editorial" design system
-   White paper, near-black ink, one confident yellow used like a
-   highlighter pen: underlines, offset blocks, buttons, small marks.
+   White paper, near-black ink, neutral greys. No accent colour.
 ------------------------------------------------------------------- */
 
 @layer base {
   html { scroll-behavior: smooth; }
   body { @apply bg-paper text-ink font-sans antialiased; }
-  ::selection { background: #ffc800; color: #111; }
+  ::selection { background: #111; color: #fff; }
   :focus-visible { outline: 2px solid #111; outline-offset: 3px; }
   label { @apply block text-[11px] font-medium uppercase tracking-[0.2em] text-stone-600; }
 }
@@ -24,23 +23,23 @@
   }
   .btn::after { content: "\2192"; transition: transform 0.3s; }
   .btn:hover::after { transform: translateX(5px); }
-.btn-dark { @apply btn bg-[#C08614] text-white shadow-[0_10px_30px_-12px_rgba(192,134,20,0.7)] hover:bg-ink hover:text-[#C08614] hover:shadow-none; }
+.btn-dark { @apply btn bg-ink text-white hover:bg-stone-600; }
   /* Type helpers */
   .display { @apply font-serif font-medium leading-[0.98] tracking-tight; }
   .eyebrow { @apply inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-stone-600; }
-  .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; background: #ffc800; }
+  .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; background: #111; }
   /* Highlighter pen behind a word or phrase in a heading */
   .marker {
-    background-image: linear-gradient(transparent 60%, #ffc800 60%, #ffc800 90%, transparent 90%);
+    background-image: linear-gradient(transparent 60%, #E5E5E5 60%, #E5E5E5 90%, transparent 90%);
     padding: 0 0.08em;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
   }
 
-  /* Photo with a yellow block offset behind it. Parent must not clip overflow. */
+  /* Photo with a grey block offset behind it. Parent must not clip overflow. */
   .frame { position: relative; isolation: isolate; }
   .frame::before {
-    content: ""; position: absolute; inset: 0; z-index: -1; background: #ffc800;
+    content: ""; position: absolute; inset: 0; z-index: -1; background: #E5E5E5;
     transform: translate(14px, 14px); transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
   }
   .frame:hover::before { transform: translate(22px, 22px); }
@@ -52,18 +51,18 @@
 
   /* Animated underline for text links */
   .link-line {
-    background: linear-gradient(#ffc800, #ffc800) 0 100% / 0 2px no-repeat;
+    background: linear-gradient(#111, #111) 0 100% / 0 2px no-repeat;
     padding-bottom: 3px; transition: background-size 0.4s;
   }
   .link-line:hover { background-size: 100% 2px; }
 
   .hairline { border-top: 1px solid rgba(17, 17, 17, 0.12); }
 
-  /* Editorial form fields: underline only, yellow glow on focus */
+  /* Editorial form fields: underline only, darker line on focus */
   .field {
     @apply w-full border-0 border-b border-ink/25 bg-transparent px-0 py-3 text-base normal-case tracking-normal text-ink outline-none transition-all;
   }
-  .field:focus { border-color: #111; box-shadow: 0 2px 0 0 #ffc800; }
+  .field:focus { border-color: #111; box-shadow: 0 1px 0 0 #111; }
   .field-error { @apply border-red-700; }
 
   /* Scrolling category strip */
@@ -100,3 +99,7 @@
 .fade-in { animation: fadeIn 0.35s ease both; }
 @keyframes zoomIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
 .zoom-in { animation: zoomIn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+/* Booking wizard: each step drops in from above */
+@keyframes stepIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+.step-in { animation: stepIn 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
