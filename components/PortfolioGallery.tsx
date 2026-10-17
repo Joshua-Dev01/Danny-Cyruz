@@ -3,9 +3,38 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePortfolioLive } from "@/lib/usePortfolioLive";
 import type { PortfolioItem } from "@/lib/portfolio";
+import { cld } from "@/lib/cloudinary";
 
 type Video = { src?: string; youtube?: string; poster?: string; title: string; meta: string; vertical?: boolean };
 const thumbOf = (v: Video) => v.poster ?? (v.youtube ? `https://i.ytimg.com/vi/${v.youtube}/hqdefault.jpg` : undefined);
+
+// Image that shows a shimmering skeleton until it has loaded, then fades in.
+// While loading, the image sits invisibly on top of the skeleton so the layout does not jump around.
+// Give it key={src} where it is used, so a changed src starts again with a fresh skeleton.
+function SkeletonImg({ src, alt, className = "", fill = false, ratio = "aspect-[4/5]" }: { src: string; alt: string; className?: string; fill?: boolean; ratio?: string }) {
+  const [loaded, setLoaded] = useState(false);
+  // A cached image can finish loading before React attaches onLoad, so check it as soon as it mounts.
+  const ref = useCallback((img: HTMLImageElement | null) => {
+    if (img && img.complete) setLoaded(true);
+  }, []);
+
+  return (
+    <>
+      {!loaded && <span aria-hidden className={`skeleton block w-full ${fill ? "absolute inset-0 h-full" : ratio}`} />}
+      <img
+        ref={ref}
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+        style={{ transition: "opacity .6s ease, transform 1.4s cubic-bezier(0.2,0.7,0.2,1)" }}
+        className={`${className} ${loaded ? "opacity-100" : "absolute inset-0 h-full w-full opacity-0"}`}
+      />
+    </>
+  );
+}
 
 export default function PortfolioGallery({ initial }: { initial: PortfolioItem[] }) {
   const { items } = usePortfolioLive(initial);
@@ -139,11 +168,11 @@ export default function PortfolioGallery({ initial }: { initial: PortfolioItem[]
             {photos.map((f, i) => (
               <figure key={f.id} className="work-card mb-3 break-inside-avoid md:mb-6" style={{ animationDelay: `${Math.min(i, 8) * 80}ms` }}>
                 <button onClick={() => setActive(i)} aria-label={`View ${f.title}`} className="group relative block w-full overflow-hidden bg-stone-100 text-left">
-                  <img
-                    src={f.src}
+                  <SkeletonImg
+                    key={f.src}
+                    src={cld(f.src, 900)}
                     alt={`${f.title}, ${f.meta.toLowerCase()} photograph`}
-                    loading="lazy"
-                    className="block h-auto w-full transition-transform duration-[1400ms] ease-[cubic-bezier(0.2,0.7,0.2,1)] group-hover:scale-[1.05]"
+                    className="block h-auto w-full group-hover:scale-[1.05]"
                   />
                   <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent" />
                   <span className="absolute bottom-2.5 right-2.5 flex items-center gap-2 bg-white px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.18em] text-ink shadow-md transition-colors duration-300 group-hover:bg-ink group-hover:text-white md:bottom-4 md:right-4 md:px-4 md:py-2 md:text-[11px]">
@@ -178,7 +207,7 @@ export default function PortfolioGallery({ initial }: { initial: PortfolioItem[]
                     className={`group relative block w-full overflow-hidden bg-ink text-left ${v.vertical ? "mx-auto aspect-[9/16] max-w-xs" : "aspect-video"}`}
                   >
                     {thumb ? (
-                      <img src={thumb} alt={`${v.title} video`} loading="lazy" className="h-full w-full object-cover transition-transform duration-[1400ms] ease-[cubic-bezier(0.2,0.7,0.2,1)] group-hover:scale-[1.05]" />
+                      <SkeletonImg key={thumb} fill src={cld(thumb, 900)} alt={`${v.title} video`} className="h-full w-full object-cover group-hover:scale-[1.05]" />
                     ) : (
                       <video src={`${v.src}#t=0.5`} preload="metadata" muted playsInline className="h-full w-full object-cover" />
                     )}
@@ -211,7 +240,7 @@ export default function PortfolioGallery({ initial }: { initial: PortfolioItem[]
           {closeBtn}
           {arrows}
           <figure key={photo.id} className="zoom-in flex max-h-full max-w-5xl flex-col items-center" onClick={(e) => e.stopPropagation()}>
-            <img src={photo.src} alt={photo.title} className="max-h-[78vh] w-auto max-w-full object-contain" />
+            <img src={cld(photo.src, 1800)} alt={photo.title} className="max-h-[78vh] w-auto max-w-full object-contain" />
             <figcaption className="mt-5 text-center text-white">
               <span className="block font-serif text-2xl">{photo.title}</span>
               <span className="mt-1 block text-[11px] uppercase tracking-[0.2em] text-white/60">{photo.meta} · {active! + 1} / {photos.length}</span>

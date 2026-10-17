@@ -103,3 +103,11 @@
 /* Booking wizard: each step drops in from above */
 @keyframes stepIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
 .step-in { animation: stepIn 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+/* Skeleton loader for images that are still loading */
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skeleton {
+  background: linear-gradient(100deg, #E8D9B8 30%, #FBF3E2 50%, #E8D9B8 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
