@@ -48,26 +48,26 @@ function LoginForm() {
     router.replace("/admin");
   }
 
-  const input = "w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200";
+  const input = "w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm text-black outline-none transition placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black/10";
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-violet-900 px-5">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-8 shadow-2xl">
+    <main className="flex min-h-screen items-center justify-center bg-black px-5">
+      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-8 shadow-2xl shadow-white/5">
         <div className="mb-2 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-sm font-bold text-white shadow-lg shadow-indigo-500/40">DC</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-black text-sm font-bold text-white">DC</span>
           <div>
-            <p className="text-base font-bold tracking-wide text-slate-900">DANNY CYRUZ</p>
-            <p className="text-xs text-slate-500">Admin sign in</p>
+            <p className="text-base font-bold tracking-wide text-black">DANNY CYRUZ</p>
+            <p className="text-xs text-neutral-500">Admin sign in</p>
           </div>
         </div>
         <input className={input} type="email" required autoComplete="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input className={input} type="password" required autoComplete="current-password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button disabled={busy} className="w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/30 transition hover:bg-indigo-700 disabled:opacity-50">
+        <button disabled={busy} className="w-full rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-50">
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
 
       {toast && (
-        <div role="alert" className="fixed right-4 top-4 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-xl bg-rose-600 px-4 py-3 text-sm font-medium text-white shadow-xl">
+        <div role="alert" className="fixed right-4 top-4 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-xl border border-black bg-white px-4 py-3 text-sm font-medium text-black shadow-xl">
           <span>{toast}</span>
           <button onClick={() => setToast("")} aria-label="Dismiss" className="text-lg leading-none opacity-80 hover:opacity-100">×</button>
         </div>

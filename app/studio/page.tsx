@@ -3,6 +3,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Photo from "@/components/Photo";
 import { DEPOSIT_NGN, img, services, site } from "@/lib/content";
+import { fetchStudioPhotos } from "@/lib/studio-server";
+
+// Rebuilt at most once a minute, so photos added in Admin > Studio show up quickly.
+export const revalidate = 60;
 
 export const metadata = {
   title: "Studio",
@@ -19,8 +23,8 @@ export const metadata = {
 // EDIT: location line under the page title
 const location = "Lekki Phase 1 • Lagos • Daylight & blackout facility";
 
-// EDIT: studio photos (first one is the big hero)
-const photos = [
+// Built-in photos, shown only until you add photos in Admin > Studio.
+const fallbackPhotos = [
   { src: img("dc-s4", 1800, 1000), caption: "01 / Main daylight bay & white cyclorama" },
   { src: img("dc-r3", 1400, 1000), caption: "02 / Wide view of the space" },
   { src: img("dc-s3", 900, 1100), caption: "03 / Seamless backdrop system" },
@@ -73,9 +77,13 @@ const access = "Easily accessible from Lekki Toll Gate. Secure gated compound wi
 const label = "text-[10px] uppercase tracking-[0.18em] text-stone-600";
 const section = "mx-auto max-w-7xl border-t border-ink/10 px-5 py-14 md:px-10 md:py-20";
 
-export default function StudioPage() {
+export default async function StudioPage() {
   const studio = services.find((s) => s.slug === "studio")!;
   const bookHref = `/book?service=${encodeURIComponent(studio.name)}`;
+  const uploaded = await fetchStudioPhotos();
+  const photos = uploaded.length
+    ? uploaded.map((p, i) => ({ src: p.image_url, caption: p.caption ? `${String(i + 1).padStart(2, "0")} / ${p.caption}` : String(i + 1).padStart(2, "0") }))
+    : fallbackPhotos;
   const [hero, ...gallery] = photos;
 
   return (
@@ -105,7 +113,7 @@ export default function StudioPage() {
         <h2 className="display mt-3 text-4xl uppercase md:text-5xl">The space.</h2>
         <div className="mt-8 grid grid-cols-2 gap-3 md:mt-10 md:grid-cols-6 md:gap-4">
           {gallery.map((p, i) => (
-            <figure key={p.caption} className={`${i === 0 ? "col-span-2 md:col-span-4" : "md:col-span-2"}`}>
+            <figure key={`${p.src}-${i}`} className={`${i === 0 ? "col-span-2 md:col-span-4" : "md:col-span-2"}`}>
               <div className={`zoom bg-stone-100 ${i === 0 ? "aspect-[16/10]" : "aspect-[4/5] md:aspect-[4/3]"}`}>
                 <Photo src={p.src} alt={p.caption} />
               </div>

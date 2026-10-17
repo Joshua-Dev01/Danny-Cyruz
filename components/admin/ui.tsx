@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /* ---------- styles ---------- */
 export const label = "text-[11px] font-semibold uppercase tracking-wider text-slate-500";
@@ -61,6 +62,9 @@ const paths: Record<string, ReactNode> = {
   left: <path d="M19 12H5m7-7-7 7 7 7" />,
   right: <path d="M5 12h14m-7-7 7 7-7 7" />,
   phone: <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" />,
+  camera: <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></>,
+  menu: <path d="M3 6h18M3 12h18M3 18h18" />,
+  logout:<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />,
   lock: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
 };
 export function Icon({ name, size = 18, className = "" }: { name: keyof typeof paths | string; size?: number; className?: string }) {
@@ -141,38 +145,51 @@ export function Empty({ text, children }: { text: string; children?: ReactNode }
 /* ---------- the "⋯" dropdown on every row ---------- */
 export type MenuItem = { label: string; icon?: string; onClick?: () => void; href?: string; danger?: boolean; hidden?: boolean };
 export function RowMenu({ items }: { items: MenuItem[] }) {
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setPos(null), []);
+  const visible = items.filter((i) => !i.hidden);
 
   useEffect(() => {
     if (!pos) return;
-    const onDown = (e: MouseEvent) => { if (!btnRef.current?.contains(e.target as Node) && !(e.target as HTMLElement).closest("[data-rowmenu]")) close(); };
+    const onDown = (e: Event) => { const t = e.target as HTMLElement; if (!btnRef.current?.contains(t) && !t.closest("[data-rowmenu]")) close(); };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
-    document.addEventListener("mousedown", onDown);
+    document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
-    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
+    return () => { document.removeEventListener("pointerdown", onDown); document.removeEventListener("keydown", onKey); window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
   }, [pos, close]);
 
-  const visible = items.filter((i) => !i.hidden);
-  const cls = (danger?: boolean) => `flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm ${danger ? "text-rose-600 hover:bg-rose-50" : "text-slate-700 hover:bg-slate-50"}`;
+  function toggle() {
+    if (pos) return close();
+    const r = btnRef.current!.getBoundingClientRect();
+    const w = 208, h = visible.length * 38 + 8, m = 8;
+    const left = Math.min(Math.max(m, r.right - w), window.innerWidth - w - m);
+    const below = r.bottom + 4;
+    const top = below + h > window.innerHeight - m ? Math.max(m, r.top - h - 4) : below;
+    setPos({ top, left });
+  }
+
+  const cls = (danger?: boolean) => `flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm ${danger ? "text-rose-600 hover:bg-rose-50" : "text-slate-700 hover:bg-slate-50"}`;
+  // The menu is portalled to <body>: inside a card with overflow-hidden / hover transforms,
+  // a position:fixed menu gets clipped or offset, which is what made it misbehave.
+  const menu = pos && typeof document !== "undefined" ? createPortal(
+    <div data-rowmenu role="menu" style={{ top: pos.top, left: pos.left }} className="fixed z-[80] w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+      {visible.map((i) => {
+        const inner = <>{i.icon && <Icon name={i.icon} size={16} />}{i.label}</>;
+        return i.href
+          ? <a key={i.label} role="menuitem" href={i.href} target="_blank" rel="noreferrer" onClick={close} className={cls(i.danger)}>{inner}</a>
+          : <button key={i.label} type="button" role="menuitem" onClick={() => { close(); i.onClick?.(); }} className={cls(i.danger)}>{inner}</button>;
+      })}
+    </div>,
+    document.body,
+  ) : null;
   return (
     <div onClick={(e) => e.stopPropagation()} className="inline-block">
-      <button ref={btnRef} aria-label="Actions" aria-haspopup="menu" aria-expanded={!!pos}
-        onClick={() => { const r = btnRef.current!.getBoundingClientRect(); setPos(pos ? null : { top: r.bottom + 4, right: window.innerWidth - r.right }); }}
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"><Icon name="dots" /></button>
-      {pos && (
-        <div data-rowmenu role="menu" style={{ top: pos.top, right: pos.right }} className="fixed z-[80] w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
-          {visible.map((i) => {
-            const inner = <>{i.icon && <Icon name={i.icon} size={16} />}{i.label}</>;
-            return i.href
-              ? <a key={i.label} role="menuitem" href={i.href} target="_blank" rel="noreferrer" onClick={close} className={cls(i.danger)}>{inner}</a>
-              : <button key={i.label} role="menuitem" onClick={() => { close(); i.onClick?.(); }} className={cls(i.danger)}>{inner}</button>;
-          })}
-        </div>
-      )}
+      <button ref={btnRef} type="button" aria-label="Actions" aria-haspopup="menu" aria-expanded={!!pos} onClick={toggle}
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"><Icon name="dots" /></button>
+      {menu}
     </div>
   );
 }

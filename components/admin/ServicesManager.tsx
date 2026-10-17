@@ -4,7 +4,7 @@ import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { useAdminTable } from "@/lib/useAdminTable";
 import { uploadFile, removeFiles, slugify } from "@/lib/admin-utils";
 import { services as siteServices } from "@/lib/content";
-import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Icon, RowMenu, useToast, field, label, btn, btnDark, card, tableWrap, th, td, trow, naira } from "./ui";
+import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Icon, useToast, field, label, btn, btnDark, card, tableWrap, th, td, trow, naira } from "./ui";
 
 type Pkg = { tag?: string; title: string; price: number | ""; detail: string };
 type Service = {
@@ -97,19 +97,21 @@ export default function ServicesManager() {
       </PageHead>
       {error && <p role="alert" className="mt-4 text-sm text-rose-600">{error}</p>}
 
-      {loading ? <div className={`${card} mt-6 space-y-3 p-4`}>{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div> : rows.length > 0 && (
+      {loading ? <div className={`${card} mt-6 space-y-3 p-4`}>{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div> : rows.length > 0 ? (
         <div className={`${tableWrap} mt-6`}>
           <table className="w-full">
             <thead><tr>
+              <th className={`${th} w-10`}>#</th>
               <th className={th}>Service</th>
               <th className={`${th} hidden sm:table-cell`}>From</th>
               <th className={`${th} hidden md:table-cell`}>Packages</th>
               <th className={th}>Status</th>
-              <th className={`${th} w-12`}><span className="sr-only">Actions</span></th>
+              <th className={`${th} text-right`}>Actions</th>
             </tr></thead>
             <tbody>
-              {rows.map((s) => (
+              {rows.map((s, n) => (
                 <tr key={s.id} onClick={() => openForm(s)} className={trow}>
+                  <td className={`${td} text-xs text-slate-400`}>{n + 1}</td>
                   <td className={td}>
                     <div className="flex items-center gap-3">
                       <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100">{s.image_url && <img src={s.image_url} alt="" loading="lazy" className="h-full w-full object-cover" />}</span>
@@ -118,20 +120,56 @@ export default function ServicesManager() {
                   </td>
                   <td className={`${td} hidden font-medium sm:table-cell`}>{s.price_from != null ? naira(s.price_from) : "—"}</td>
                   <td className={`${td} hidden md:table-cell`}>{(s.extras ?? []).length}</td>
-                  <td className={td}>{s.active ? <Tag tone="green">Visible</Tag> : <Tag>Hidden</Tag>}</td>
-                  <td className={td}><RowMenu items={[
-                    { label: "Edit", icon: "edit", onClick: () => openForm(s) },
-                    { label: s.active ? "Hide from site" : "Show on site", icon: "eye", onClick: () => toggleActive(s) },
-                    { label: "Delete", icon: "trash", danger: true, onClick: () => setDel(s) },
-                  ]} /></td>
+                  <td className={td}>
+                    <button type="button" title={s.active ? "Click to hide from the site" : "Click to show on the site"} onClick={(e) => { e.stopPropagation(); void toggleActive(s); }}>
+                      {s.active ? <Tag tone="green">Visible</Tag> : <Tag>Hidden</Tag>}
+                    </button>
+                  </td>
+                  <td className={td}>
+                    <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => openForm(s)} aria-label={`Edit ${s.name}`} title="Edit" className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Icon name="edit" size={15} /><span className="hidden sm:inline">Edit</span></button>
+                      <button type="button" onClick={() => setDel(s)} aria-label={`Delete ${s.name}`} title="Delete" className="flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-600 hover:text-white"><Icon name="trash" size={15} /><span className="hidden sm:inline">Delete</span></button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-      {!loading && rows.length === 0 && (
-        <div className="mt-6"><Empty text="No services in the database yet."><button disabled={busy} onClick={importCurrent} className={btn}>Import the services from the site</button></Empty></div>
+      ) : (
+        <div className="mt-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm text-amber-900">These are the services currently on your site. Import them to edit or delete them here.</p>
+            <button disabled={busy} onClick={importCurrent} className={btnDark}>{busy ? "Importing…" : "Import to edit"}</button>
+          </div>
+          <div className={tableWrap}>
+            <table className="w-full">
+              <thead><tr>
+                <th className={`${th} w-10`}>#</th>
+                <th className={th}>Service</th>
+                <th className={`${th} hidden sm:table-cell`}>From</th>
+                <th className={`${th} hidden md:table-cell`}>Packages</th>
+                <th className={th}>Status</th>
+              </tr></thead>
+              <tbody>
+                {siteServices.map((s, n) => (
+                  <tr key={s.slug} className="border-t border-slate-100">
+                    <td className={`${td} text-xs text-slate-400`}>{n + 1}</td>
+                    <td className={td}>
+                      <div className="flex items-center gap-3">
+                        <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100">{s.image && <img src={s.image} alt="" loading="lazy" className="h-full w-full object-cover" />}</span>
+                        <div className="min-w-0"><p className="truncate font-medium text-slate-900">{s.name}</p><p className="line-clamp-1 text-xs text-slate-500">{s.blurb}</p></div>
+                      </div>
+                    </td>
+                    <td className={`${td} hidden font-medium sm:table-cell`}>{naira(s.from)}</td>
+                    <td className={`${td} hidden md:table-cell`}>{s.packages.length}</td>
+                    <td className={td}><Tag tone="blue">On site</Tag></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       <Drawer open={panel !== "closed"} onClose={() => !busy && setPanel("closed")} title={editing ? "Edit service" : "Add service"}
