@@ -2,12 +2,17 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { frames } from "@/lib/content";
+import { usePortfolioLive } from "@/lib/usePortfolioLive";
+import type { PortfolioItem } from "@/lib/portfolio";
 
-type Frame = (typeof frames)[number];
+type Frame = { id: string; src: string; title: string; meta: string };
 
-export default function RecentWork() {
-  const items = frames.slice(0, 6);
+export default function RecentWork({ initial }: { initial: PortfolioItem[] }) {
+  const { items: all } = usePortfolioLive(initial);
+  const items: Frame[] = all
+    .filter((i) => i.media_type === "photo" && i.cover_url)
+    .slice(0, 6)
+    .map((i) => ({ id: i.id, src: i.cover_url as string, title: i.title, meta: i.category }));
   const [active, setActive] = useState<number | null>(null);
 
   const next = useCallback(() => setActive((i) => (i === null ? i : (i + 1) % items.length)), [items.length]);
@@ -72,7 +77,7 @@ export default function RecentWork() {
       <div className="grid grid-cols-2 items-start gap-4 md:hidden">
         {mobile.map((col, c) => (
           <div key={c} className={`flex flex-col gap-6 ${c === 1 ? "mt-10" : ""}`}>
-            {col.map((i) => items[i] && <Card key={items[i].src} f={items[i]} i={i} />)}
+            {col.map((i) => items[i] && <Card key={items[i].id} f={items[i]} i={i} />)}
           </div>
         ))}
       </div>
@@ -81,7 +86,7 @@ export default function RecentWork() {
       <div className="hidden grid-cols-3 items-start gap-8 md:grid">
         {desktop.map((col, c) => (
           <div key={c} className={`flex flex-col gap-10 ${c === 1 ? "mt-20" : ""}`}>
-            {col.map((i) => items[i] && <Card key={items[i].src} f={items[i]} i={i} />)}
+            {col.map((i) => items[i] && <Card key={items[i].id} f={items[i]} i={i} />)}
           </div>
         ))}
       </div>
@@ -121,7 +126,7 @@ export default function RecentWork() {
             ›
           </button>
 
-          <figure key={current.src} className="zoom-in flex max-h-full max-w-5xl flex-col items-center" onClick={(e) => e.stopPropagation()}>
+          <figure key={current.id} className="zoom-in flex max-h-full max-w-5xl flex-col items-center" onClick={(e) => e.stopPropagation()}>
             <img src={current.src} alt={current.title} className="max-h-[78vh] w-auto max-w-full object-contain" />
             <figcaption className="mt-5 text-center text-white">
               <span className="block font-serif text-2xl">{current.title}</span>

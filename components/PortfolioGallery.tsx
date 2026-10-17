@@ -1,21 +1,35 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { frames, videos } from "@/lib/content";
+import { usePortfolioLive } from "@/lib/usePortfolioLive";
+import type { PortfolioItem } from "@/lib/portfolio";
 
 type Video = { src?: string; youtube?: string; poster?: string; title: string; meta: string; vertical?: boolean };
-const allVideos = videos as Video[];
-
 const thumbOf = (v: Video) => v.poster ?? (v.youtube ? `https://i.ytimg.com/vi/${v.youtube}/hqdefault.jpg` : undefined);
 
-export default function PortfolioGallery() {
+export default function PortfolioGallery({ initial }: { initial: PortfolioItem[] }) {
+  const { items } = usePortfolioLive(initial);
   const [type, setType] = useState<"photos" | "videos">("photos");
-  const categories = useMemo(() => ["All", ...Array.from(new Set(frames.map((f) => f.meta)))], []);
+  const frames = useMemo(
+    () => items.filter((i) => i.media_type === "photo" && i.cover_url).map((i) => ({ id: i.id, src: i.cover_url as string, title: i.title, meta: i.category })),
+    [items]
+  );
+  const allVideos: Video[] = useMemo(
+    () => items.filter((i) => i.media_type === "video").map((i) => ({ src: i.video_url ?? undefined, youtube: i.youtube_id ?? undefined, poster: i.cover_url ?? undefined, title: i.title, meta: i.category, vertical: i.vertical })),
+    [items]
+  );
+  const categories = useMemo(() => ["All", ...Array.from(new Set(frames.map((f) => f.meta)))], [frames]);
   const [filter, setFilter] = useState("All");
   const [active, setActive] = useState<number | null>(null);
 
-  const photos = useMemo(() => (filter === "All" ? frames : frames.filter((f) => f.meta === filter)), [filter]);
+  // If the chosen category disappears (its last photo was deleted), go back to All.
+  useEffect(() => { if (!categories.includes(filter)) setFilter("All"); }, [categories, filter]);
+
+  const photos = useMemo(() => (filter === "All" ? frames : frames.filter((f) => f.meta === filter)), [filter, frames]);
   const length = type === "photos" ? photos.length : allVideos.length;
+
+  // If the open photo is removed while someone is looking at it, close the viewer.
+  useEffect(() => { if (active !== null && active >= length) setActive(null); }, [active, length]);
 
   const next = useCallback(() => setActive((i) => (i === null ? i : (i + 1) % length)), [length]);
   const prev = useCallback(() => setActive((i) => (i === null ? i : (i - 1 + length) % length)), [length]);
@@ -123,7 +137,7 @@ export default function PortfolioGallery() {
         <section className="mx-auto max-w-7xl px-5 py-10 md:px-10 md:py-16">
           <div key={filter} className="columns-2 gap-3 md:columns-3 md:gap-6">
             {photos.map((f, i) => (
-              <figure key={f.src} className="work-card mb-3 break-inside-avoid md:mb-6" style={{ animationDelay: `${Math.min(i, 8) * 80}ms` }}>
+              <figure key={f.id} className="work-card mb-3 break-inside-avoid md:mb-6" style={{ animationDelay: `${Math.min(i, 8) * 80}ms` }}>
                 <button onClick={() => setActive(i)} aria-label={`View ${f.title}`} className="group relative block w-full overflow-hidden bg-stone-100 text-left">
                   <img
                     src={f.src}
@@ -196,7 +210,7 @@ export default function PortfolioGallery() {
         <div role="dialog" aria-modal="true" aria-label={photo.title} className="fade-in fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm md:p-10" onClick={() => setActive(null)}>
           {closeBtn}
           {arrows}
-          <figure key={photo.src} className="zoom-in flex max-h-full max-w-5xl flex-col items-center" onClick={(e) => e.stopPropagation()}>
+          <figure key={photo.id} className="zoom-in flex max-h-full max-w-5xl flex-col items-center" onClick={(e) => e.stopPropagation()}>
             <img src={photo.src} alt={photo.title} className="max-h-[78vh] w-auto max-w-full object-contain" />
             <figcaption className="mt-5 text-center text-white">
               <span className="block font-serif text-2xl">{photo.title}</span>

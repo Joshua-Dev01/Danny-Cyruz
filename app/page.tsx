@@ -4,15 +4,19 @@ import Footer from "@/components/Footer";
 import Photo from "@/components/Photo";
 import {
   site,
-  frames,
   disciplines,
   services,
   testimonials,
   DEPOSIT_NGN,
 } from "@/lib/content";
 import RecentWork from "@/components/RecentWork";
+import { fetchPortfolio } from "@/lib/portfolio-server";
 
-export default function Home() {
+// The page is rebuilt at most once a minute. Visitors who have it open get portfolio changes live anyway.
+export const revalidate = 60;
+
+export default async function Home() {
+  const portfolio = await fetchPortfolio();
   const studio = services.find((s) => s.slug === "studio")!;
   return (
     <>
@@ -64,7 +68,7 @@ export default function Home() {
       </section>
 
       {/* RECENT FRAMES */}
-    <RecentWork />
+    <RecentWork initial={portfolio} />
 
       {/* SERVICES */}
       <section className="bg-sun-pale py-20 md:py-28">

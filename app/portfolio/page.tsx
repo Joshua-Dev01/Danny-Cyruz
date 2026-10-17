@@ -3,13 +3,18 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PortfolioGallery from "@/components/PortfolioGallery";
 import { site, DEPOSIT_NGN } from "@/lib/content";
+import { fetchPortfolio } from "@/lib/portfolio-server";
+
+// The page is rebuilt at most once a minute. Visitors who have it open get changes live anyway.
+export const revalidate = 60;
 
 export const metadata = {
   title: "Portfolio",
   description: "Weddings, portraits, events and more by Danny Cyruz.",
 };
 
-export default function PortfolioPage() {
+export default async function PortfolioPage() {
+  const items = await fetchPortfolio();
   return (
     <>
       <Navbar />
@@ -25,7 +30,7 @@ export default function PortfolioPage() {
         </div>
       </header>
 
-      <PortfolioGallery />
+      <PortfolioGallery initial={items} />
 
       <section className="bg-ink px-5 py-20 text-center text-white md:py-28">
         <h2 className="display mx-auto max-w-2xl text-4xl md:text-6xl">

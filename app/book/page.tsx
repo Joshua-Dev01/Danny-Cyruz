@@ -16,6 +16,7 @@ export default function BookPage({ searchParams }: { searchParams: { service?: s
   const match =
     services.find((s) => s.name.toLowerCase() === q || s.slug === q) ??
     (q.includes("studio") || q.includes("rental") ? services.find((s) => s.slug === "studio") : undefined);
+  const initialService = match?.name ?? (q.includes("event") || q.includes("wedding") || q.includes("birthday") ? "Events" : "");
 
   // EDIT: policies shown before booking. Must match the terms in the booking form.
   const facts = [
@@ -32,7 +33,7 @@ export default function BookPage({ searchParams }: { searchParams: { service?: s
         <header className="mx-auto max-w-7xl px-5 pb-10 pt-28 md:px-10 md:pb-12 md:pt-36">
           <p className={label}>Reservations</p>
           <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <h1 className="display animate-rise text-[3rem] uppercase leading-none md:text-[6rem]">Book a session.</h1>
+            <h1 className="display animate-rise text-[2rem] uppercase leading-none md:text-[3rem]">Book a session.</h1>
             <p className="max-w-xs text-sm text-stone-600 md:text-right">
               Five short steps. You pay a small deposit now and the balance on the day.
             </p>
@@ -40,7 +41,7 @@ export default function BookPage({ searchParams }: { searchParams: { service?: s
         </header>
 
         <div className="mx-auto max-w-7xl px-5 pb-16 md:px-10 md:pb-24">
-          <BookingForm initialService={match?.name ?? ""} />
+          <BookingForm initialService={initialService} />
         </div>
 
         <section className="border-t border-ink/10">

@@ -3,16 +3,27 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { services, DEPOSIT_NGN, site } from "@/lib/content";
 import { createBooking } from "@/app/book/actions";
+import { getBrowserSupabase } from "@/lib/supabase-browser";
 
 /* ------------------------------------------------------------------
    EDIT THESE. Placeholders to replace with Danny's real details.
 ------------------------------------------------------------------- */
 
-// The studio(s) clients can book "inside the studio".
-const studios = [
-  { id: "lekki", name: "Lekki Phase 1 studio", note: "Lagos" }, // EDIT
-  { id: "abuja", name: "Maitama studio suite", note: "Abuja" }, // EDIT
-];
+// The one studio clients book "inside the studio".
+const STUDIO = { name: "Lekki Phase 1 studio", note: "Lagos" }; // EDIT
+
+// Event types clients can pick. "Other" lets them type their own.
+const OCCASIONS = ["Wedding", "Birthday", "Other"]; // EDIT
+
+// Events are priced per event, not per picture. Shown instead of a price.
+const EVENT_NAME = "Events";
+const EVENT_PRICE_NOTE = "Event prices depend on the event, the hours and the coverage you need. We send your quote on WhatsApp after you book."; // EDIT
+
+// Largest number of pictures a client can ask for.
+const MAX_PICTURES = 100;
+
+// Largest group size accepted (the server allows up to 50).
+const MAX_PEOPLE = 50;
 
 // Shown under the outdoor address field.
 const OUTDOOR_NOTE = "Travel costs for outdoor locations are agreed with you on WhatsApp before your date is confirmed."; // EDIT
@@ -42,12 +53,17 @@ const terms = [
 
 type Session = "studio" | "outdoor" | "";
 
+type Kind = "portrait" | "event" | "rental" | "";
+
 type Form = {
+  kind: Kind;
   service: string;
   package_name: string;
   session: Session;
-  studio: string;
   address: string;
+  occasion: string;
+  occasion_other: string;
+  pictures: string;
   event_date: string;
   event_time: string;
   people: number;
@@ -60,12 +76,12 @@ type Form = {
 };
 
 const empty: Form = {
-  service: "", package_name: "", session: "", studio: "", address: "", event_date: "", event_time: "", people: 1,
+  kind: "", service: "", package_name: "", session: "", address: "", occasion: "", occasion_other: "", pictures: "", event_date: "", event_time: "", people: 1,
   full_name: "", email: "", phone: "", instagram: "", notes: "", terms: false,
 };
 
 const steps = [
-  { name: "Service", title: "Choose a service", hint: "Pick what you need, then a package." },
+  { name: "Service", title: "What are you booking?", hint: "Pick studio portraits, an event, or the studio space." },
   { name: "Session type", title: "Studio or outdoor?", hint: "Where would you like your session to happen?" },
   { name: "Date & time", title: "Pick a date and time", hint: "Choose the day and start time that suit you." },
   { name: "Your details", title: "Your details", hint: "So we can confirm your booking." },
@@ -127,7 +143,13 @@ function Modal({ children, onClose, labelledBy }: { children: React.ReactNode; o
 
 export default function BookingForm({ initialService = "" }: { initialService?: string }) {
   const initialSvc = services.find((s) => s.name === initialService);
-  const [v, setV] = useState<Form>({ ...empty, service: initialService, session: initialSvc?.slug === "studio" ? "studio" : "" });
+  const initialKind: Kind = initialService === EVENT_NAME ? "event" : initialSvc ? (initialSvc.slug === "studio" ? "rental" : "portrait") : "";
+  const [v, setV] = useState<Form>({
+    ...empty,
+    kind: initialKind,
+    service: initialService,
+    session: initialKind === "rental" ? "studio" : initialKind === "event" ? "outdoor" : "",
+  });
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -135,19 +157,60 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
   const [reference, setReference] = useState("");
   const [serverError, setServerError] = useState("");
   const [toast, setToast] = useState("");
+  const [morePeople, setMorePeople] = useState(false);
+  const [peopleText, setPeopleText] = useState("4");
   const wizardRef = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
+  const accessToken = useRef<string | null>(null);
 
+  // If the client is signed in, fill in their name and email and link the booking to their account.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { data } = await getBrowserSupabase().auth.getSession();
+        const session = data.session;
+        if (!active || !session) return;
+        accessToken.current = session.access_token;
+        const name = String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? "");
+        setV((p) => ({ ...p, full_name: p.full_name || name, email: p.email || (session.user.email ?? "") }));
+      } catch { /* not signed in: book as a guest */ }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  const portraitServices = services.filter((s) => s.slug !== "studio");
+  const rentalService = services.find((s) => s.slug === "studio")!;
   const svc = services.find((s) => s.name === v.service);
   const pkg = svc?.packages.find((p) => p.title === v.package_name);
-  const isStudioService = svc?.slug === "studio";
-  const session: Session = isStudioService ? "studio" : v.session;
-  const studio = studios.find((p) => p.id === v.studio);
+  const isEvent = v.kind === "event";
+  const isStudioService = v.kind === "rental";
+  const session: Session = isEvent ? "outdoor" : isStudioService ? "studio" : v.session;
   const locationText =
-    session === "studio" ? (studio ? `${studio.name}, ${studio.note}` : "") : session === "outdoor" ? v.address.trim() : "";
-  const sessionLabel = session === "studio" ? "Inside the studio" : session === "outdoor" ? "Outdoor" : "";
+    session === "studio" ? `${STUDIO.name}, ${STUDIO.note}` : session === "outdoor" ? v.address.trim() : "";
+  const included = pkg ? parseInt(pkg.title, 10) || 1 : 1;
+  const picturesWanted = parseInt(v.pictures, 10);
+  const occasionText = v.occasion === "Other" ? v.occasion_other.trim() : v.occasion;
+  const sessionLabel = isEvent ? "At your event venue" : session === "studio" ? "Inside the studio" : session === "outdoor" ? "Outdoor" : "";
   const price = pkg?.price ?? 0;
   const balance = Math.max(price - DEPOSIT_NGN, 0);
+  const packageLabel = isEvent ? "Price quoted after booking" : v.package_name;
+  const balanceText = isEvent ? "After your quote" : pkg ? money(balance) : "—";
+  const priceText = isEvent ? "Quoted on WhatsApp" : pkg ? money(price) : "—";
+
+  const chooseKind = (k: Exclude<Kind, "">) => {
+    setV((p) => ({
+      ...p,
+      kind: k,
+      service: k === "event" ? EVENT_NAME : k === "rental" ? rentalService.name : portraitServices.some((s) => s.name === p.service) ? p.service : "",
+      package_name: p.kind === k ? p.package_name : "",
+      pictures: "",
+      occasion: k === "event" ? p.occasion : "",
+      occasion_other: k === "event" ? p.occasion_other : "",
+      session: k === "rental" ? "studio" : k === "event" ? "outdoor" : "",
+    }));
+    setErrors({});
+  };
   const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return toISO(d); })();
 
   const set = <K extends keyof Form>(k: K, value: Form[K]) => {
@@ -170,19 +233,28 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
   function validate(s: number) {
     const e: Record<string, string> = {};
     if (s === 0) {
-      if (!v.service) e.service = "Choose a service to continue.";
-      else if (!v.package_name) e.package_name = "Choose a package to continue.";
+      if (!v.kind) e.kind = "Choose what you are booking.";
+      else if (v.kind === "event") {
+        if (!v.occasion) e.occasion = "Choose the type of event.";
+        else if (v.occasion === "Other" && v.occasion_other.trim().length < 2) e.occasion_other = "Tell us what the event is.";
+      } else {
+        if (!v.service) e.service = "Choose who the session is for.";
+        else if (!v.package_name) e.package_name = "Choose a package to continue.";
+        if (v.kind === "portrait" && v.pictures.trim() && !(Number.isInteger(picturesWanted) && picturesWanted > included && picturesWanted <= MAX_PICTURES)) {
+          e.pictures = `Enter a number above ${included} (up to ${MAX_PICTURES}), or leave it empty.`;
+        }
+      }
     }
     if (s === 1) {
       if (!session) e.session = "Choose studio or outdoor.";
-      if (session === "studio" && !v.studio) e.studio = "Choose which studio.";
-      if (session === "outdoor" && v.address.trim().length < 5) e.address = "Enter the venue or place, and the area or city.";
+      if (session === "outdoor" && v.address.trim().length < 5) e.address = isEvent ? "Enter the event venue, and the area or city." : "Enter the venue or place, and the area or city.";
     }
     if (s === 2) {
       if (!v.event_date) e.event_date = "Pick your preferred date.";
       else if (v.event_date < tomorrow) e.event_date = "Pick a date from tomorrow onwards.";
       else if (CLOSED_WEEKDAYS.includes(new Date(`${v.event_date}T00:00:00`).getDay())) e.event_date = "We are closed on that day. Please pick another date.";
       if (!v.event_time) e.event_time = "Pick a start time.";
+      if (!isEvent && (!Number.isInteger(v.people) || v.people < 1 || v.people > MAX_PEOPLE)) e.people = `Enter a group size between 1 and ${MAX_PEOPLE}.`;
     }
     if (s === 3) {
       if (v.full_name.trim().length < 2) e.full_name = "Enter your full name.";
@@ -210,9 +282,9 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
     try {
       const r = await createBooking({
         full_name: v.full_name, email: v.email, phone: v.phone, instagram: v.instagram,
-        service: v.service, package_name: v.package_name, session_type: session === "outdoor" ? "outdoor" : "studio",
-        people: v.people, event_date: v.event_date, event_time: v.event_time, location: locationText,
-        notes: v.notes, terms: v.terms,
+        service: v.service, package_name: isEvent ? "" : v.package_name, session_type: session === "outdoor" ? "outdoor" : "studio",
+        people: isEvent ? 1 : v.people, event_type: isEvent ? occasionText : "", pictures: v.kind === "portrait" && v.pictures.trim() ? picturesWanted : null, event_date: v.event_date, event_time: v.event_time, location: locationText,
+        notes: v.notes, terms: v.terms, access_token: accessToken.current,
       });
       if (r.ok) { setReference(r.reference); setModal("success"); }
       else { setServerError(r.error); setModal("error"); }
@@ -232,18 +304,20 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
   }
 
   const waText = encodeURIComponent(
-    `Hello Danny, I just requested booking ${reference} (${v.service}, ${v.package_name}) for ${prettyDate(v.event_date)} at ${prettyTime(v.event_time)}. I am sending my ${money(DEPOSIT_NGN)} deposit receipt.`
+    `Hello Danny, I just requested booking ${reference} (${isEvent ? `${occasionText} event` : `${v.service}, ${v.package_name}`}) for ${prettyDate(v.event_date)} at ${prettyTime(v.event_time)}. I am sending my ${money(DEPOSIT_NGN)} deposit receipt.`
   );
   const waHelp = encodeURIComponent("Hello Danny, I need help with my booking.");
 
   const summaryRows: [string, string][] = [
     ["Service", v.service],
-    ["Package", v.package_name],
+    ...(isEvent ? ([["Event", occasionText]] as [string, string][]) : []),
+    ["Package", packageLabel],
+    ...(v.kind === "portrait" && v.pictures.trim() && Number.isInteger(picturesWanted) ? ([["Pictures", String(picturesWanted)]] as [string, string][]) : []),
     ["Session", sessionLabel],
     ["Location", locationText],
     ["Date", prettyDate(v.event_date)],
     ["Start time", v.event_time ? prettyTime(v.event_time) : ""],
-    ["People", v.service ? String(v.people) : ""],
+    ...(v.kind && !isEvent ? ([["People", String(v.people)]] as [string, string][]) : []),
   ];
 
   function SuccessModal() {
@@ -269,7 +343,7 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
           </div>
           <div className="flex justify-between gap-4 px-4 py-2.5">
             <dt className={label}>Balance on the day</dt>
-            <dd>{money(balance)}</dd>
+            <dd>{isEvent ? "After your quote" : money(balance)}</dd>
           </div>
         </dl>
 
@@ -319,7 +393,10 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
   /* ---------------- Wizard ---------------- */
   const optionCls = (on: boolean) =>
     `block w-full border p-4 text-left transition-colors md:p-5 ${on ? "border-ink bg-white outline outline-1 outline-ink" : "border-ink/15 hover:border-ink/50"}`;
-  const current = steps[step];
+  const current =
+    isEvent && step === 1
+      ? { name: "Session type", title: "Where is the event?", hint: "Tell us the venue and the area or city." }
+      : steps[step];
 
   return (
     <>
@@ -358,28 +435,48 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
             <p className="mt-2 text-sm text-stone-600">{current.hint}</p>
 
             <div className="mt-8">
-              {/* 1. Service */}
+              {/* 1. What are you booking */}
               {step === 0 && (
                 <>
-                  <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Service">
-                    {services.map((s) => (
-                      <button
-                        key={s.slug}
-                        type="button"
-                        role="radio"
-                        aria-checked={v.service === s.name}
-                        onClick={() => { setV((p) => ({ ...p, service: s.name, package_name: "", session: s.slug === "studio" ? "studio" : services.find((x) => x.name === p.service)?.slug === "studio" ? "" : p.session })); setErrors({}); }}
-                        className={optionCls(v.service === s.name)}
-                      >
-                        <span className="block text-sm font-medium uppercase tracking-wide">{s.name}</span>
-                        <span className="mt-1 block text-xs text-stone-600">{s.subtitle}</span>
-                        <span className={`mt-4 block ${label}`}>From {money(s.from)}</span>
+                  <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="What are you booking">
+                    {([
+                      { k: "portrait", name: "Studio portraits", note: "Children, one year old and adults. Priced by number of pictures.", from: `From ${money(Math.min(...portraitServices.map((x) => x.from)))}` },
+                      { k: "event", name: "Events", note: "Weddings, birthdays and other occasions. Priced per event.", from: "Price quoted for your event" },
+                      { k: "rental", name: "Studio rental", note: "Hire our studio space by the hour.", from: `From ${money(rentalService.from)}` },
+                    ] as const).map((o) => (
+                      <button key={o.k} type="button" role="radio" aria-checked={v.kind === o.k} onClick={() => chooseKind(o.k)} className={optionCls(v.kind === o.k)}>
+                        <span className="block text-sm font-medium uppercase tracking-wide">{o.name}</span>
+                        <span className="mt-1 block text-xs text-stone-600">{o.note}</span>
+                        <span className={`mt-4 block ${label}`}>{o.from}</span>
                       </button>
                     ))}
                   </div>
-                  <Err msg={errors.service} />
+                  <Err msg={errors.kind} />
 
-                  {svc && (
+                  {v.kind === "portrait" && (
+                    <div className="mt-8">
+                      <p className={label}>Who is the session for?</p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Portrait type">
+                        {portraitServices.map((x) => (
+                          <button
+                            key={x.slug}
+                            type="button"
+                            role="radio"
+                            aria-checked={v.service === x.name}
+                            onClick={() => { setV((p) => ({ ...p, service: x.name, package_name: "", pictures: "" })); setErrors({}); }}
+                            className={optionCls(v.service === x.name)}
+                          >
+                            <span className="block text-sm font-medium uppercase tracking-wide">{x.name}</span>
+                            <span className="mt-1 block text-xs text-stone-600">{x.subtitle}</span>
+                            <span className={`mt-4 block ${label}`}>From {money(x.from)}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <Err msg={errors.service} />
+                    </div>
+                  )}
+
+                  {(v.kind === "portrait" || v.kind === "rental") && svc && (
                     <div className="mt-8">
                       <p className={label}>Package for {svc.name}</p>
                       <div className="mt-3 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Package">
@@ -396,14 +493,49 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
                       <Err msg={errors.package_name} />
                     </div>
                   )}
+
+                  {v.kind === "portrait" && pkg && (
+                    <div className="mt-8 max-w-xs">
+                      <label htmlFor="pictures">Need more than {included === 1 ? "1 picture" : `${included} pictures`}? (optional)</label>
+                      <input id="pictures" type="number" inputMode="numeric" min={included + 1} max={MAX_PICTURES} className={`field ${errors.pictures ? "field-error" : ""}`} value={v.pictures} onChange={(e) => set("pictures", e.target.value)} placeholder="Total number of pictures" />
+                      <Err msg={errors.pictures} />
+                      <p className="mt-2 text-xs text-stone-600">Extra pictures are priced separately. We will confirm the price with you on WhatsApp.</p>
+                    </div>
+                  )}
+
+                  {isEvent && (
+                    <div className="mt-8">
+                      <p className={label}>What type of event is it? *</p>
+                      <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Type of event">
+                        {OCCASIONS.map((o) => (
+                          <button key={o} type="button" role="radio" aria-checked={v.occasion === o} onClick={() => set("occasion", o)} className={`px-5 py-3 text-[11px] uppercase tracking-[0.14em] ${v.occasion === o ? "bg-ink text-white" : "border border-ink/20 hover:border-ink"}`}>
+                            {o}
+                          </button>
+                        ))}
+                      </div>
+                      <Err msg={errors.occasion} />
+                      {v.occasion === "Other" && (
+                        <div className="mt-4 max-w-xs">
+                          <label htmlFor="occasion_other">What is the event? *</label>
+                          <input id="occasion_other" className={`field ${errors.occasion_other ? "field-error" : ""}`} value={v.occasion_other} maxLength={60} onChange={(e) => set("occasion_other", e.target.value)} placeholder="e.g. Graduation" autoFocus />
+                          <Err msg={errors.occasion_other} />
+                        </div>
+                      )}
+                      <p className="mt-5 border border-ink/10 bg-stone-100 p-4 text-xs leading-relaxed text-stone-600">
+                        {EVENT_PRICE_NOTE} Your {money(DEPOSIT_NGN)} deposit holds the date and is deducted from your final bill.
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
 
               {/* 2. Studio or outdoor */}
               {step === 1 && (
                 <>
-                  {isStudioService ? (
-                    <p className="border border-ink/10 bg-stone-100 p-4 text-sm text-stone-600">Studio rental takes place inside the studio. Choose which one below.</p>
+                  {isEvent ? (
+                    <p className="border border-ink/10 bg-stone-100 p-4 text-sm text-stone-600">Events take place at your venue. Tell us where below.</p>
+                  ) : isStudioService ? (
+                    <p className="border border-ink/10 bg-stone-100 p-4 text-sm text-stone-600">Studio rental takes place inside our studio.</p>
                   ) : (
                     <>
                       <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Session type">
@@ -420,27 +552,12 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
                     </>
                   )}
 
-                  {session === "studio" && (
-                    <div className="mt-8">
-                      <p className={label}>Which studio?</p>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Studio">
-                        {studios.map((p) => (
-                          <button key={p.id} type="button" role="radio" aria-checked={v.studio === p.id} onClick={() => set("studio", p.id)} className={optionCls(v.studio === p.id)}>
-                            <span className="block text-sm font-medium uppercase tracking-wide">{p.name}</span>
-                            <span className="mt-1 block text-xs text-stone-600">{p.note}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <Err msg={errors.studio} />
-                    </div>
-                  )}
-
                   {session === "outdoor" && (
                     <div className="mt-8">
-                      <label htmlFor="address">Outdoor location *</label>
-                      <input id="address" className={`field ${errors.address ? "field-error" : ""}`} value={v.address} onChange={(e) => set("address", e.target.value)} placeholder="Place and area, e.g. Landmark Beach, Victoria Island" autoFocus />
+                      <label htmlFor="address">{isEvent ? "Event venue *" : "Outdoor location *"}</label>
+                      <input id="address" className={`field ${errors.address ? "field-error" : ""}`} value={v.address} onChange={(e) => set("address", e.target.value)} placeholder={isEvent ? "Venue and area, e.g. Eko Hotel, Victoria Island" : "Place and area, e.g. Landmark Beach, Victoria Island"} autoFocus />
                       <Err msg={errors.address} />
-                      <p className="mt-3 text-xs text-stone-600">{OUTDOOR_NOTE}</p>
+                      <p className="mt-3 text-xs text-stone-600">{isEvent ? "Travel costs for events outside Lagos are included in your quote." : OUTDOOR_NOTE}</p>
                     </div>
                   )}
                 </>
@@ -464,16 +581,42 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
                       <Err msg={errors.event_time} />
                     </div>
                   </div>
+                  {!isEvent && (
                   <div className="mt-8">
                     <p className={label}>How many people will be in the session?</p>
                     <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Number of people">
-                      {[1, 2, 3].map((n) => (
-                        <button key={n} type="button" role="radio" aria-checked={v.people === n} onClick={() => set("people", n)} className={`px-5 py-3 text-[11px] uppercase tracking-[0.14em] ${v.people === n ? "bg-ink text-white" : "border border-ink/20 hover:border-ink"}`}>
-                          {n === 1 ? "1 person" : n === 2 ? "2 people" : "3+ group"}
-                        </button>
-                      ))}
+                      {[1, 2, 3].map((n) => {
+                        const on = n === 3 ? v.people >= 3 || morePeople : !morePeople && v.people === n;
+                        return (
+                          <button key={n} type="button" role="radio" aria-checked={on} onClick={() => { setMorePeople(n === 3); if (n === 3) setPeopleText("3"); set("people", n); }} className={`px-5 py-3 text-[11px] uppercase tracking-[0.14em] ${on ? "bg-ink text-white" : "border border-ink/20 hover:border-ink"}`}>
+                            {n === 1 ? "1 person" : n === 2 ? "2 people" : "3+ group"}
+                          </button>
+                        );
+                      })}
                     </div>
+                    {morePeople && (
+                      <div className="mt-4 max-w-[12rem]">
+                        <label htmlFor="people_count">Exact number of people</label>
+                        <input
+                          id="people_count"
+                          type="number"
+                          inputMode="numeric"
+                          min={3}
+                          max={MAX_PEOPLE}
+                          className={`field ${errors.people ? "field-error" : ""}`}
+                          value={peopleText}
+                          onChange={(e) => {
+                            setPeopleText(e.target.value);
+                            const n = parseInt(e.target.value, 10);
+                            set("people", Number.isNaN(n) ? 0 : n);
+                          }}
+                        />
+                      </div>
+                    )}
+                    <Err msg={errors.people} />
+                    {morePeople && <p className="mt-2 text-xs text-stone-600">Larger groups may affect the price. We will confirm with you on WhatsApp.</p>}
                   </div>
+                  )}
                 </>
               )}
 
@@ -568,9 +711,9 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
               ))}
             </dl>
             <dl className="mt-3 space-y-2 border-t border-ink pt-4 text-sm">
-              <div className="flex justify-between"><dt className={label}>Package price</dt><dd>{pkg ? money(price) : "—"}</dd></div>
+              <div className="flex justify-between"><dt className={label}>Package price</dt><dd>{priceText}</dd></div>
               <div className="flex justify-between"><dt className={label}>Deposit due now</dt><dd className="font-medium">{money(DEPOSIT_NGN)}</dd></div>
-              <div className="flex justify-between"><dt className={label}>Balance on the day</dt><dd>{pkg ? money(balance) : "—"}</dd></div>
+              <div className="flex justify-between"><dt className={label}>Balance on the day</dt><dd>{balanceText}</dd></div>
             </dl>
             <p className="mt-4 border-t border-ink/10 pt-4 text-xs leading-relaxed text-stone-600">
               Your {money(DEPOSIT_NGN)} deposit is part of the price, not an extra fee. Your date is not confirmed until the deposit is paid.
