@@ -3,7 +3,7 @@ import { useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { useAdminTable } from "@/lib/useAdminTable";
 import { uploadFile, removeFiles, sha256, randomPasscode } from "@/lib/admin-utils";
-import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Avatar, Icon, RowMenu, useToast, field, label, btn, btnDark, btnDanger, card, tableWrap, th, td, trow, fmtDate } from "./ui";
+import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Avatar, Icon, RowMenu, Field, FormSection, useToast, field, label, btn, btnDark, btnDanger, submitBtn, cancelBtn, card, tableWrap, th, td, trow, fmtDate } from "./ui";
 
 type Photo = { url: string; name?: string };
 type Album = {
@@ -140,14 +140,20 @@ export default function AlbumsManager() {
       {!loading && rows.length === 0 && <div className="mt-6"><Empty text="No client albums yet."><button onClick={openCreate} className={btn}>Create the first album</button></Empty></div>}
 
       {/* New album */}
-      <Drawer open={creating} onClose={() => !busy && setCreating(false)} title="New album"
-        footer={<div className="flex gap-2"><button form="af" disabled={busy} className={`${btnDark} flex-1`}>{busy ? "Creating…" : "Create album"}</button><button type="button" onClick={() => setCreating(false)} className={btn}>Cancel</button></div>}>
+      <Drawer open={creating} onClose={() => !busy && setCreating(false)} icon="folder"
+        title="New album" subtitle="A private gallery your client opens with a passcode."
+        footer={<div className="flex gap-3"><button form="af" disabled={busy} className={submitBtn}>{busy ? "Creating…" : "Create album"}</button><button type="button" onClick={() => setCreating(false)} className={cancelBtn}>Cancel</button></div>}>
         <form id="af" onSubmit={create} className="space-y-4">
-          <label className="block"><span className={label}>Client name</span><input className={field} value={client} onChange={(e) => setClient(e.target.value)} required maxLength={80} /></label>
-          <label className="block"><span className={label}>Album title</span><input className={field} value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={80} /></label>
-          <label className="block"><span className={label}>Passcode for the client</span>
-            <div className="flex gap-2"><input className={field + " font-mono uppercase tracking-widest"} value={code} onChange={(e) => setCode(e.target.value)} required minLength={4} /><button type="button" onClick={() => setCode(randomPasscode())} className={`${btn} mt-1`}>New</button></div></label>
-          <Toggle checked={download} onChange={setDownload} text="Client can download photos" />
+          <FormSection title="Album details">
+            <Field label="Client name"><input className={field} value={client} onChange={(e) => setClient(e.target.value)} required maxLength={80} placeholder="Ada Okafor" /></Field>
+            <Field label="Album title"><input className={field} value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={80} placeholder="Wedding · 12 Oct" /></Field>
+          </FormSection>
+          <FormSection title="Client access" desc="Share this passcode with your client so they can open the album.">
+            <Field label="Passcode">
+              <div className="flex gap-2"><input className={field + " font-mono uppercase tracking-[0.3em]"} value={code} onChange={(e) => setCode(e.target.value)} required minLength={4} /><button type="button" onClick={() => setCode(randomPasscode())} className={`${btn} mt-1.5 !rounded-xl`}>New</button></div>
+            </Field>
+            <Toggle checked={download} onChange={setDownload} text="Client can download photos" hint="Turn off for view-only albums" />
+          </FormSection>
         </form>
       </Drawer>
 

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { useAdminTable } from "@/lib/useAdminTable";
 import { uploadFile, removeFiles } from "@/lib/admin-utils";
-import { PageHead, Drawer, ConfirmDialog, Empty, Skeleton, Icon, useToast, field, label, btn, btnDark, card } from "./ui";
+import { PageHead, Drawer, ConfirmDialog, Empty, Skeleton, Icon, Field, FormSection, FileDrop, useToast, field, btn, btnDark, submitBtn, cancelBtn, card } from "./ui";
 
 type Photo = { id: string; caption: string; image_url: string; sort: number; created_at: string };
 
@@ -106,16 +106,22 @@ export default function StudioManager() {
         <div className="mt-6"><Empty text="No studio photos yet. Until you add some, the Studio page shows its built-in photos."><button onClick={openAdd} className={btn}>Add photos</button></Empty></div>
       )}
 
-      <Drawer open={panel !== "closed"} onClose={() => !busy && setPanel("closed")} title={editing ? "Edit photo" : "Add studio photos"}
-        footer={<div className="flex gap-2"><button form="stf" disabled={busy} className={`${btnDark} flex-1`}>{busy ? "Saving…" : editing ? "Save changes" : "Upload & publish"}</button><button type="button" disabled={busy} onClick={() => setPanel("closed")} className={btn}>Cancel</button></div>}>
+      <Drawer open={panel !== "closed"} onClose={() => !busy && setPanel("closed")} icon="camera"
+        title={editing ? "Edit photo" : "Add studio photos"} subtitle={editing ? "Change the caption, order or replace the photo." : "Upload one or several photos for the Studio page."}
+        footer={<div className="flex gap-3"><button form="stf" disabled={busy} className={submitBtn}>{busy ? "Saving…" : editing ? "Save changes" : files.length > 1 ? `Upload ${files.length} photos` : "Upload & publish"}</button><button type="button" disabled={busy} onClick={() => setPanel("closed")} className={cancelBtn}>Cancel</button></div>}>
         <form id="stf" onSubmit={save} className="space-y-4">
-          {editing && <img src={editing.image_url} alt="" className="max-h-56 w-full rounded-lg bg-slate-100 object-contain" />}
-          <label className="block"><span className={label}>{editing ? "Replace photo (optional)" : "Photos (you can pick several)"}</span>
-            <input className={field} type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple={!editing} onChange={(e) => setFiles(Array.from(e.target.files ?? []))} /></label>
-          <label className="block"><span className={label}>Caption{!editing && files.length > 1 ? " (used for all of them)" : ""}</span>
-            <input className={field} value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={100} placeholder="Main daylight bay & white cyclorama" /></label>
-          <label className="block"><span className={label}>Position (lowest shows first)</span>
-            <input className={field} type="number" value={sort} onChange={(e) => setSort(e.target.value === "" ? "" : Number(e.target.value))} placeholder={editing ? String(editing.sort) : `${nextSort} (end of list)`} /></label>
+          <FormSection title={editing ? "Photo" : "Photos"} desc="JPG, PNG, WebP or AVIF.">
+            <FileDrop files={files} onChange={setFiles} accept="image/jpeg,image/png,image/webp,image/avif" multiple={!editing}
+              existingUrl={editing?.image_url} title={editing ? "Replace photo" : "Upload studio photos"} hint={editing ? "Click to browse or drag a new one here" : "Click to browse or drag them here · pick as many as you like"} />
+          </FormSection>
+          <FormSection title="Details">
+            <Field label="Caption" optional hint={!editing && files.length > 1 ? "Used for all the photos you are uploading." : "Shown under the photo on the Studio page."}>
+              <input className={field} value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={100} placeholder="Main daylight bay & white cyclorama" />
+            </Field>
+            <Field label="Position" hint="Lowest number shows first. #1 is the big photo at the top.">
+              <input className={field} type="number" value={sort} onChange={(e) => setSort(e.target.value === "" ? "" : Number(e.target.value))} placeholder={editing ? String(editing.sort) : `${nextSort} (end of list)`} />
+            </Field>
+          </FormSection>
         </form>
       </Drawer>
 

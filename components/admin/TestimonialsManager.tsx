@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { useAdminTable } from "@/lib/useAdminTable";
-import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Avatar, Icon, RowMenu, useToast, field, label, btn, btnDark, card, tableWrap, th, td, trow } from "./ui";
+import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Avatar, Icon, RowMenu, Field, FormSection, useToast, field, btn, btnDark, submitBtn, cancelBtn, card, tableWrap, th, td, trow } from "./ui";
 
 type T = { id: string; client_name: string; role: string | null; quote: string; published: boolean | null };
 
@@ -83,13 +83,18 @@ export default function TestimonialsManager() {
       )}
       {!loading && rows.length === 0 && <div className="mt-6"><Empty text="No testimonials yet."><button onClick={() => openForm()} className={btn}>Add the first one</button></Empty></div>}
 
-      <Drawer open={panel !== "closed"} onClose={() => !busy && setPanel("closed")} title={editing ? "Edit testimonial" : "Add testimonial"}
-        footer={<div className="flex gap-2"><button form="tf" disabled={busy} className={`${btnDark} flex-1`}>{busy ? "Saving…" : "Save"}</button><button type="button" onClick={() => setPanel("closed")} className={btn}>Cancel</button></div>}>
+      <Drawer open={panel !== "closed"} onClose={() => !busy && setPanel("closed")} icon="quote"
+        title={editing ? "Edit testimonial" : "Add testimonial"} subtitle="A kind word from a client, shown on your site."
+        footer={<div className="flex gap-3"><button form="tf" disabled={busy} className={submitBtn}>{busy ? "Saving…" : "Save"}</button><button type="button" onClick={() => setPanel("closed")} className={cancelBtn}>Cancel</button></div>}>
         <form id="tf" onSubmit={save} className="space-y-4">
-          <label className="block"><span className={label}>Client name</span><input className={field} value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} /></label>
-          <label className="block"><span className={label}>Role (optional)</span><input className={field} value={role} onChange={(e) => setRole(e.target.value)} placeholder="Wedding clients" maxLength={60} /></label>
-          <label className="block"><span className={label}>Quote</span><textarea className={field} rows={5} value={quote} onChange={(e) => setQuote(e.target.value)} required maxLength={500} /></label>
-          <Toggle checked={published} onChange={setPublished} text="Published" />
+          <FormSection title="Client">
+            <Field label="Client name"><input className={field} value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} placeholder="Ada & Tunde" /></Field>
+            <Field label="Role" optional><input className={field} value={role} onChange={(e) => setRole(e.target.value)} placeholder="Wedding clients" maxLength={60} /></Field>
+          </FormSection>
+          <FormSection title="Their words">
+            <Field label="Quote" hint={`${quote.length}/500 characters`}><textarea className={field} rows={6} value={quote} onChange={(e) => setQuote(e.target.value)} required maxLength={500} placeholder="What did they say about working with you?" /></Field>
+            <Toggle checked={published} onChange={setPublished} text="Published" hint="Turn off to keep it hidden from the site" />
+          </FormSection>
         </form>
       </Drawer>
 

@@ -1,14 +1,17 @@
 "use client";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /* ---------- styles ---------- */
 export const label = "text-[11px] font-semibold uppercase tracking-wider text-slate-500";
-export const field = "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200";
+export const field = "mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10";
 const btnBase = "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition disabled:pointer-events-none disabled:opacity-50";
 export const btn = `${btnBase} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`;
 export const btnDark = `${btnBase} bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 hover:bg-indigo-700`;
 export const btnDanger = `${btnBase} border border-rose-200 bg-white text-rose-600 hover:bg-rose-600 hover:text-white`;
+// Big buttons for the footer of add/edit panels.
+export const submitBtn = `${btnDark} flex-1 !rounded-xl !py-3 !text-sm`;
+export const cancelBtn = `${btn} !rounded-xl !py-3 !text-sm`;
 export const card = "rounded-xl border border-slate-200 bg-white shadow-sm";
 export const tableWrap = `${card} overflow-x-auto`;
 export const th = "whitespace-nowrap bg-slate-50 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500";
@@ -62,6 +65,7 @@ const paths: Record<string, ReactNode> = {
   left: <path d="M19 12H5m7-7-7 7 7 7" />,
   right: <path d="M5 12h14m-7-7 7 7-7 7" />,
   phone: <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" />,
+  upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />,
   camera: <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></>,
   menu: <path d="M3 6h18M3 12h18M3 18h18" />,
   logout:<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />,
@@ -195,25 +199,145 @@ export function RowMenu({ items }: { items: MenuItem[] }) {
 }
 
 /* ---------- panels, dialogs, toasts ---------- */
-export function Drawer({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode }) {
+export function Drawer({ open, onClose, title, subtitle, icon, children, footer }: { open: boolean; onClose: () => void; title: string; subtitle?: string; icon?: string; children: ReactNode; footer?: ReactNode }) {
+  // Stays mounted a moment after closing so the panel can slide out smoothly.
+  const [mounted, setMounted] = useState(open);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true)));
+      return () => cancelAnimationFrame(id);
+    }
+    setShown(false);
+    const t = setTimeout(() => setMounted(false), 300);
+    return () => clearTimeout(t);
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
-  if (!open) return null;
+  // While sliding out, keep showing what was on screen (the caller may already have cleared its state).
+  const last = useRef({ title, subtitle, icon, children, footer });
+  if (open) last.current = { title, subtitle, icon, children, footer };
+  const c = last.current;
+  if (!mounted) return null;
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px]" />
-      <aside role="dialog" aria-modal="true" aria-label={title} className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
-        <div className="flex items-center justify-between bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-4 text-white">
-          <p className="text-sm font-semibold">{title}</p>
-          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 hover:bg-white/15"><Icon name="x" /></button>
+      <button aria-label="Close" onClick={onClose} className={`absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-300 ${shown ? "opacity-100" : "opacity-0"}`} />
+      <aside role="dialog" aria-modal="true" aria-label={c.title}
+        className={`relative flex h-full w-full max-w-lg flex-col bg-slate-50 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] sm:rounded-l-3xl ${shown ? "translate-x-0" : "translate-x-full"}`}>
+        <div className="relative overflow-hidden border-b border-slate-200 bg-white px-5 py-5 sm:rounded-tl-3xl sm:px-6">
+          <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" />
+          <div className="flex items-start gap-3">
+            {c.icon && <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><Icon name={c.icon} size={20} /></span>}
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold tracking-tight text-slate-900">{c.title}</p>
+              {c.subtitle && <p className="mt-0.5 text-sm text-slate-500">{c.subtitle}</p>}
+            </div>
+            <button onClick={onClose} aria-label="Close" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"><Icon name="x" size={20} /></button>
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
-        {footer && <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">{footer}</div>}
+        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">{c.children}</div>
+        {c.footer && <div className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6">{c.footer}</div>}
       </aside>
+    </div>
+  );
+}
+
+/* ---------- form pieces ---------- */
+// Label + input + optional hint. Put an input/textarea/select with className={field} inside.
+export function Field({ label: text, hint, optional, children }: { label: string; hint?: string; optional?: boolean; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="flex items-baseline justify-between gap-2">
+        <span className="text-[13px] font-semibold text-slate-800">{text}</span>
+        {optional && <span className="text-[11px] font-medium text-slate-400">Optional</span>}
+      </span>
+      {children}
+      {hint && <span className="mt-1.5 block text-xs leading-relaxed text-slate-500">{hint}</span>}
+    </label>
+  );
+}
+
+// A titled card that groups related fields.
+export function FormSection({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-4">
+        <h3 className="text-sm font-bold text-slate-900">{title}</h3>
+        {desc && <p className="mt-0.5 text-xs text-slate-500">{desc}</p>}
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
+// Two or three pill choices (e.g. Photo / Video).
+export function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string; icon?: string }[] }) {
+  return (
+    <div role="tablist" className="grid gap-1 rounded-xl bg-slate-200/70 p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map((o) => (
+        <button key={o.value} type="button" role="tab" aria-selected={value === o.value} onClick={() => onChange(o.value)}
+          className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${value === o.value ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}>
+          {o.icon && <Icon name={o.icon} size={16} />}{o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Drag-and-drop upload box with previews. `existingUrl` shows the current image when editing.
+export function FileDrop({ files, onChange, accept, multiple = false, existingUrl, title = "Click to upload or drag and drop", hint }: {
+  files: File[]; onChange: (f: File[]) => void; accept: string; multiple?: boolean; existingUrl?: string | null; title?: string; hint?: string;
+}) {
+  const [over, setOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const previews = useMemo(() => files.map((f) => ({ f, url: f.type.startsWith("image/") ? URL.createObjectURL(f) : null })), [files]);
+  useEffect(() => () => previews.forEach((p) => p.url && URL.revokeObjectURL(p.url)), [previews]);
+
+  function take(list: FileList | null) {
+    if (!list || !list.length) return;
+    const ok = Array.from(list).filter((f) => accept.split(",").some((a) => (a.endsWith("/*") ? f.type.startsWith(a.slice(0, -1)) : f.type === a.trim())));
+    if (!ok.length) return;
+    onChange(multiple ? [...files, ...ok] : [ok[0]]);
+  }
+  const size = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+  return (
+    <div>
+      <div role="button" tabIndex={0} onClick={() => inputRef.current?.click()} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), inputRef.current?.click())}
+        onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); setOver(false); take(e.dataTransfer.files); }}
+        className={`group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-7 text-center transition ${over ? "border-indigo-500 bg-indigo-50" : "border-slate-300 bg-slate-50/70 hover:border-indigo-400 hover:bg-indigo-50/50"}`}>
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200 transition group-hover:scale-105"><Icon name="upload" size={20} /></span>
+        <p className="mt-3 text-sm font-semibold text-slate-800">{title}</p>
+        {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
+        <input ref={inputRef} type="file" accept={accept} multiple={multiple} className="sr-only" tabIndex={-1}
+          onClick={(e) => e.stopPropagation()} onChange={(e) => { take(e.target.files); e.target.value = ""; }} />
+      </div>
+
+      {!files.length && existingUrl && (
+        <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
+          <img src={existingUrl} alt="" className="h-14 w-14 rounded-lg bg-slate-100 object-cover" />
+          <div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-800">Current image</p><p className="text-xs text-slate-500">Choose a new one above to replace it</p></div>
+        </div>
+      )}
+
+      {previews.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {previews.map((p, i) => (
+            <li key={`${p.f.name}-${i}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
+              {p.url ? <img src={p.url} alt="" className="h-14 w-14 shrink-0 rounded-lg bg-slate-100 object-cover" />
+                : <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400"><Icon name="image" size={22} /></span>}
+              <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-800">{p.f.name}</p><p className="text-xs text-slate-500">{size(p.f.size)}</p></div>
+              <button type="button" onClick={() => onChange(files.filter((_, k) => k !== i))} aria-label={`Remove ${p.f.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Icon name="x" size={16} /></button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -251,14 +375,17 @@ export function useToast(): [ReactNode, (text: string, bad?: boolean) => void] {
   return [node, notify];
 }
 
-export function Toggle({ checked, onChange, text }: { checked: boolean; onChange: (v: boolean) => void; text: string }) {
+export function Toggle({ checked, onChange, text, hint }: { checked: boolean; onChange: (v: boolean) => void; text: string; hint?: string }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-      <span className="text-sm text-slate-700">{text}</span>
-      <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-indigo-600" : "bg-slate-300"}`}>
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? "left-[22px]" : "left-0.5"}`} />
+    <div className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 transition ${checked ? "border-indigo-200 bg-indigo-50/60" : "border-slate-200 bg-slate-50/70"}`}>
+      <button type="button" onClick={() => onChange(!checked)} className="min-w-0 flex-1 text-left">
+        <span className="block text-sm font-semibold text-slate-800">{text}</span>
+        {hint && <span className="mt-0.5 block text-xs text-slate-500">{hint}</span>}
       </button>
-    </label>
+      <button type="button" role="switch" aria-checked={checked} aria-label={text} onClick={() => onChange(!checked)}
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-indigo-600" : "bg-slate-300"}`}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? "left-[26px]" : "left-1"}`} />
+      </button>
+    </div>
   );
 }

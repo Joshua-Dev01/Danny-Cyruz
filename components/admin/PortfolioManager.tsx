@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { useAdminTable } from "@/lib/useAdminTable";
 import { uploadFile, removeFiles, parseYouTubeId } from "@/lib/admin-utils";
-import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Icon, RowMenu, useToast, field, label, btn, btnDark, card } from "./ui";
+import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Icon, RowMenu, Field, FormSection, FileDrop, Segmented, useToast, field, btn, btnDark, submitBtn, cancelBtn, card } from "./ui";
 
 type Item = {
   id: string; title: string; category: string; media_type: "photo" | "video";
@@ -168,43 +168,44 @@ export default function PortfolioManager() {
       </div>
       {!loading && shown.length === 0 && <div className="mt-6"><Empty text={`No ${kind === "photo" ? "photos" : "videos"} here yet.`}><button onClick={openAdd} className={btn}>Add one</button></Empty></div>}
 
-      <Drawer open={panel !== "closed"} onClose={() => !busy && setPanel("closed")} title={editing ? "Edit item" : "Add to portfolio"}
-        footer={<div className="flex gap-2"><button form="pf" disabled={busy} className={`${btnDark} flex-1`}>{busy ? "Saving…" : editing ? "Save changes" : "Upload & publish"}</button><button type="button" disabled={busy} onClick={() => setPanel("closed")} className={btn}>Cancel</button></div>}>
+      <Drawer open={panel !== "closed"} onClose={() => !busy && setPanel("closed")} icon={editing ? "edit" : "image"}
+        title={editing ? "Edit item" : "Add to portfolio"} subtitle={editing ? "Update the details or replace the media." : "Upload a photo or video. It goes live on the site straight away."}
+        footer={<div className="flex gap-3"><button form="pf" disabled={busy} className={submitBtn}>{busy ? "Saving…" : editing ? "Save changes" : "Upload & publish"}</button><button type="button" disabled={busy} onClick={() => setPanel("closed")} className={cancelBtn}>Cancel</button></div>}>
         <form id="pf" onSubmit={save} className="space-y-4">
-          {!editing && (
-            <div className="grid grid-cols-2 gap-2">
-              {(["photo", "video"] as const).map((t) => (
-                <button type="button" key={t} onClick={() => setFormType(t)} className={`rounded-lg border px-3 py-2.5 text-xs font-semibold capitalize ${formType === t ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300 text-slate-600"}`}>{t}</button>
-              ))}
-            </div>
-          )}
+          {!editing && <Segmented value={formType} onChange={setFormType} options={[{ value: "photo", label: "Photo", icon: "image" }, { value: "video", label: "Video", icon: "eye" }]} />}
 
-          {editing?.cover_url && formType === "photo" && <img src={editing.cover_url} alt="" className="max-h-56 w-full object-contain bg-slate-100" />}
+          <FormSection title="Details" desc="How it appears in the gallery.">
+            <Field label="Title"><input className={field} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} placeholder="Golden hour portrait" required /></Field>
+            <Field label="Category" hint="Pick an existing one or type a new one.">
+              <input className={field} list="pf-cats" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Wedding, Portrait, Event…" maxLength={40} required />
+              <datalist id="pf-cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+            </Field>
+          </FormSection>
 
-          <label className="block"><span className={label}>Title</span>
-            <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} required /></label>
-          <label className="block"><span className={label}>Category</span>
-            <input className={field} list="pf-cats" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Wedding, Portrait, Event…" maxLength={40} required />
-            <datalist id="pf-cats">{categories.map((c) => <option key={c} value={c} />)}</datalist></label>
+          <FormSection title={formType === "photo" ? "Photo" : "Video"} desc={formType === "photo" ? "JPG, PNG, WebP or AVIF." : "Paste a YouTube link, or upload a file."}>
+            {formType === "photo" ? (
+              <FileDrop files={photo ? [photo] : []} onChange={(f) => setPhoto(f[0] ?? null)} accept="image/jpeg,image/png,image/webp,image/avif"
+                existingUrl={editing?.cover_url} title={editing ? "Replace photo" : "Upload a photo"} hint="Click to browse or drag it here" />
+            ) : (
+              <>
+                <Field label="YouTube link"><input className={field} value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="https://youtu.be/…" /></Field>
+                {!editing && (
+                  <Field label="Or upload a video file" hint="mp4, webm or mov · max 50 MB">
+                    <div className="mt-1.5"><FileDrop files={videoFile ? [videoFile] : []} onChange={(f) => setVideoFile(f[0] ?? null)} accept="video/mp4,video/webm,video/quicktime" title="Upload a video" hint="Click to browse or drag it here" /></div>
+                  </Field>
+                )}
+                <Field label={editing ? "Replace poster image" : "Poster image"} optional hint="The still shown before the video plays.">
+                  <div className="mt-1.5"><FileDrop files={poster ? [poster] : []} onChange={(f) => setPoster(f[0] ?? null)} accept="image/jpeg,image/png,image/webp,image/avif" existingUrl={editing?.cover_url} title="Upload a poster" hint="Click to browse or drag it here" /></div>
+                </Field>
+              </>
+            )}
+          </FormSection>
 
-          {formType === "photo" ? (
-            <label className="block"><span className={label}>{editing ? "Replace photo (optional)" : "Photo"}</span>
-              <input className={field} type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></label>
-          ) : (
-            <>
-              <label className="block"><span className={label}>YouTube link</span>
-                <input className={field} value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="https://youtu.be/…" /></label>
-              {!editing && <label className="block"><span className={label}>Or upload a video (mp4, webm, mov · max 50 MB)</span>
-                <input className={field} type="file" accept="video/mp4,video/webm,video/quicktime" onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)} /></label>}
-              <label className="block"><span className={label}>{editing ? "Replace poster image (optional)" : "Poster image (optional)"}</span>
-                <input className={field} type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(e) => setPoster(e.target.files?.[0] ?? null)} /></label>
-              <Toggle checked={vertical} onChange={setVertical} text="Vertical (9:16) reel" />
-            </>
-          )}
-
-          <label className="block"><span className={label}>Position (lowest shows first)</span>
-            <input className={field} type="number" value={sort} onChange={(e) => setSort(e.target.value === "" ? "" : Number(e.target.value))} placeholder={editing ? String(editing.sort) : `${nextSort} (end of list)`} /></label>
-          <Toggle checked={featured} onChange={setFeatured} text="Featured on the site" />
+          <FormSection title="Display" desc="Order and highlights on the site.">
+            <Field label="Position" hint="Lowest number shows first."><input className={field} type="number" value={sort} onChange={(e) => setSort(e.target.value === "" ? "" : Number(e.target.value))} placeholder={editing ? String(editing.sort) : `${nextSort} (end of list)`} /></Field>
+            {formType === "video" && <Toggle checked={vertical} onChange={setVertical} text="Vertical reel (9:16)" hint="For phone-style videos" />}
+            <Toggle checked={featured} onChange={setFeatured} text="Featured on the site" hint="Highlights it on the home page" />
+          </FormSection>
         </form>
       </Drawer>
 

@@ -4,7 +4,7 @@ import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { useAdminTable } from "@/lib/useAdminTable";
 import { uploadFile, removeFiles, slugify } from "@/lib/admin-utils";
 import { services as siteServices } from "@/lib/content";
-import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Icon, useToast, field, label, btn, btnDark, card, tableWrap, th, td, trow, naira } from "./ui";
+import { PageHead, Tag, Drawer, ConfirmDialog, Empty, Skeleton, Toggle, Icon, Field, FormSection, FileDrop, useToast, field, btn, btnDark, submitBtn, cancelBtn, card, tableWrap, th, td, trow, naira } from "./ui";
 
 type Pkg = { tag?: string; title: string; price: number | ""; detail: string };
 type Service = {
@@ -172,34 +172,50 @@ export default function ServicesManager() {
         </div>
       )}
 
-      <Drawer open={panel !== "closed"} onClose={() => !busy && setPanel("closed")} title={editing ? "Edit service" : "Add service"}
-        footer={<div className="flex gap-2"><button form="sf" disabled={busy} className={`${btnDark} flex-1`}>{busy ? "Saving…" : "Save"}</button><button type="button" disabled={busy} onClick={() => setPanel("closed")} className={btn}>Cancel</button></div>}>
+      <Drawer open={panel !== "closed"} onClose={() => !busy && setPanel("closed")} icon="layers"
+        title={editing ? "Edit service" : "Add service"} subtitle={editing ? "Update what clients see on the Services page." : "Create a new service for your site."}
+        footer={<div className="flex gap-3"><button form="sf" disabled={busy} className={submitBtn}>{busy ? "Saving…" : "Save service"}</button><button type="button" disabled={busy} onClick={() => setPanel("closed")} className={cancelBtn}>Cancel</button></div>}>
         <form id="sf" onSubmit={save} className="space-y-4">
-          <label className="block"><span className={label}>Name</span><input className={field} value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} /></label>
-          <label className="block"><span className={label}>Web name (slug)</span><input className={field} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={slugify(name) || "auto from name"} /></label>
-          <label className="block"><span className={label}>Description</span><textarea className={field} rows={4} value={blurb} onChange={(e) => setBlurb(e.target.value)} /></label>
-          <label className="block"><span className={label}>Starting price (₦)</span><input className={field} type="number" min={0} value={priceFrom} onChange={(e) => setPriceFrom(e.target.value === "" ? "" : Number(e.target.value))} /></label>
-          <label className="block"><span className={label}>What's included (one per line)</span><textarea className={field} rows={4} value={includes} onChange={(e) => setIncludes(e.target.value)} /></label>
+          <FormSection title="Basics" desc="The name and description clients read.">
+            <Field label="Name"><input className={field} value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} placeholder="Weddings" /></Field>
+            <Field label="Web name (slug)" optional hint="Used in the page link. Leave empty to create it from the name."><input className={field} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={slugify(name) || "auto from name"} /></Field>
+            <Field label="Description"><textarea className={field} rows={4} value={blurb} onChange={(e) => setBlurb(e.target.value)} placeholder="A short, warm description of this service." /></Field>
+          </FormSection>
 
-          <div>
-            <p className={label}>Packages</p>
-            <div className="mt-2 space-y-3">
+          <FormSection title="Pricing & inclusions">
+            <Field label="Starting price (₦)"><input className={field} type="number" min={0} value={priceFrom} onChange={(e) => setPriceFrom(e.target.value === "" ? "" : Number(e.target.value))} placeholder="6500" /></Field>
+            <Field label="What's included" optional hint="One item per line."><textarea className={field} rows={4} value={includes} onChange={(e) => setIncludes(e.target.value)} placeholder={"Edited photos\nOnline gallery"} /></Field>
+          </FormSection>
+
+          <FormSection title="Packages" desc="Different options clients can choose from.">
+            {pkgs.length === 0 && <p className="rounded-xl border border-dashed border-slate-300 px-4 py-5 text-center text-sm text-slate-500">No packages yet.</p>}
+            <div className="space-y-3">
               {pkgs.map((p, i) => (
-                <div key={i} className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <input className={field + " !mt-0"} placeholder="Package title" value={p.title} onChange={(e) => setPkg(i, { title: e.target.value })} />
-                  <input className={field + " !mt-0"} type="number" min={0} placeholder="Price (₦)" value={p.price} onChange={(e) => setPkg(i, { price: e.target.value === "" ? "" : Number(e.target.value) })} />
-                  <input className={field + " !mt-0"} placeholder="Short detail" value={p.detail} onChange={(e) => setPkg(i, { detail: e.target.value })} />
-                  <button type="button" onClick={() => setPkgs((x) => x.filter((_, k) => k !== i))} className="text-xs font-semibold text-rose-600 hover:underline">Remove package</button>
+                <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">Package {String(i + 1).padStart(2, "0")}</span>
+                    <button type="button" onClick={() => setPkgs((x) => x.filter((_, k) => k !== i))} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"><Icon name="trash" size={14} />Remove</button>
+                  </div>
+                  <div className="space-y-2">
+                    <input className={field + " !mt-0 !bg-white"} placeholder="Package title" value={p.title} onChange={(e) => setPkg(i, { title: e.target.value })} />
+                    <input className={field + " !mt-0 !bg-white"} type="number" min={0} placeholder="Price (₦)" value={p.price} onChange={(e) => setPkg(i, { price: e.target.value === "" ? "" : Number(e.target.value) })} />
+                    <input className={field + " !mt-0 !bg-white"} placeholder="Short detail" value={p.detail} onChange={(e) => setPkg(i, { detail: e.target.value })} />
+                  </div>
                 </div>
               ))}
-              <button type="button" onClick={() => setPkgs((x) => [...x, { title: "", price: "", detail: "" }])} className={btn}>+ Add package</button>
             </div>
-          </div>
+            <button type="button" onClick={() => setPkgs((x) => [...x, { title: "", price: "", detail: "" }])} className={`${btn} w-full !rounded-xl !py-3 !text-sm`}><Icon name="plus" size={16} />Add package</button>
+          </FormSection>
 
-          {editing?.image_url && <img src={editing.image_url} alt="" className="max-h-44 w-full bg-slate-100 object-contain rounded-lg" />}
-          <label className="block"><span className={label}>{editing ? "Replace image (optional)" : "Image"}</span><input className={field} type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(e) => setImage(e.target.files?.[0] ?? null)} /></label>
-          <label className="block"><span className={label}>Position (lowest first)</span><input className={field} type="number" value={sort} onChange={(e) => setSort(e.target.value === "" ? "" : Number(e.target.value))} /></label>
-          <Toggle checked={active} onChange={setActive} text="Show on the site" />
+          <FormSection title="Image">
+            <FileDrop files={image ? [image] : []} onChange={(f) => setImage(f[0] ?? null)} accept="image/jpeg,image/png,image/webp,image/avif"
+              existingUrl={editing?.image_url} title={editing ? "Replace image" : "Upload an image"} hint="Click to browse or drag it here" />
+          </FormSection>
+
+          <FormSection title="Display">
+            <Field label="Position" hint="Lowest number shows first."><input className={field} type="number" value={sort} onChange={(e) => setSort(e.target.value === "" ? "" : Number(e.target.value))} /></Field>
+            <Toggle checked={active} onChange={setActive} text="Show on the site" hint="Turn off to hide it without deleting" />
+          </FormSection>
         </form>
       </Drawer>
 
