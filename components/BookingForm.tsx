@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { ArrowLeft, ArrowRight, Baby, Building2, Camera, Check, ChevronDown, Copy, MapPin, MessageCircle, Minus, PartyPopper, Plus, User, Users } from "lucide-react";
 import { services, DEPOSIT_NGN, site } from "@/lib/content";
 import { createBooking } from "@/app/book/actions";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
+import PayButton from "@/components/PayButton";
 
 /* ------------------------------------------------------------------
    EDIT THESE. Placeholders to replace with Danny's real details.
@@ -15,14 +16,11 @@ const STUDIO = { name: "Lekki Phase 1 studio", note: "Lagos" }; // EDIT
 // Event types clients can pick. "Other" lets them type their own.
 const OCCASIONS = ["Wedding", "Birthday", "Other"]; // EDIT
 
-// Events are priced per event, not per picture. Shown instead of a price.
+// Events are priced per event, not per picture.
 const EVENT_NAME = "Events";
-const EVENT_PRICE_NOTE = "Event prices depend on the event, the hours and the coverage you need. We send your quote on WhatsApp after you book."; // EDIT
+const EVENT_PRICE_NOTE = "Event prices depend on the event and the coverage you need. We send your quote on WhatsApp after you book."; // EDIT
 
-// Largest number of pictures a client can ask for.
 const MAX_PICTURES = 100;
-
-// Largest group size accepted (the server allows up to 50).
 const MAX_PEOPLE = 50;
 
 // Shown under the outdoor address field.
@@ -31,6 +29,9 @@ const OUTDOOR_NOTE = "Travel costs for outdoor locations are agreed with you on 
 // Days the studio is closed. 0 = Sunday ... 6 = Saturday. Example: [1] closes Mondays.
 const CLOSED_WEEKDAYS: number[] = [];
 
+// How many days ahead are shown as quick date buttons.
+const QUICK_DAYS = 14;
+
 // Start times offered (24h value, label)
 const times = Array.from({ length: 12 }, (_, i) => {
   const h = 8 + i;
@@ -38,12 +39,8 @@ const times = Array.from({ length: 12 }, (_, i) => {
   return { value: `${String(h).padStart(2, "0")}:00`, label };
 });
 
-// Bank details shown after booking. Leave accountNumber empty to show
-// "we will send payment details on WhatsApp" instead.
-const PAYMENT = { bank: "", accountName: "", accountNumber: "" }; // EDIT
-
 const terms = [
-  { t: "Commitment deposit", d: `The ₦${DEPOSIT_NGN.toLocaleString()} deposit is deducted from your final bill. It reserves your date and is not an extra fee.` },
+  { t: "Deposit", d: `The ₦${DEPOSIT_NGN.toLocaleString()} deposit is deducted from your final bill. It reserves your date and is not an extra fee.` },
   { t: "Rescheduling", d: "Sessions can be moved free of charge up to 48 hours before the start time. The deposit carries over to the new date." }, // EDIT
   { t: "Punctuality", d: "Please arrive on time. Late arrival shortens your session and does not move the end time." }, // EDIT
   { t: "Delivery", d: "Edited photos are delivered in a private online gallery within 7 to 14 days." }, // EDIT
@@ -52,7 +49,6 @@ const terms = [
 /* ------------------------------------------------------------------ */
 
 type Session = "studio" | "outdoor" | "";
-
 type Kind = "portrait" | "event" | "rental" | "";
 
 type Form = {
@@ -81,16 +77,17 @@ const empty: Form = {
 };
 
 const steps = [
-  { name: "Service", title: "What are you booking?", hint: "Pick studio portraits, an event, or the studio space." },
-  { name: "Session type", title: "Studio or outdoor?", hint: "Where would you like your session to happen?" },
-  { name: "Date & time", title: "Pick a date and time", hint: "Choose the day and start time that suit you." },
-  { name: "Your details", title: "Your details", hint: "So we can confirm your booking." },
-  { name: "Review", title: "Review & confirm", hint: "Check everything, then confirm." },
+  { name: "Choose", title: "What would you like to book?", hint: "Pick one. You can change it later." },
+  { name: "Date & place", title: "When and where?", hint: "Choose a day, a time and the place." },
+  { name: "Your details", title: "Almost done", hint: "So we can reach you to confirm." },
 ];
 const LAST = steps.length - 1;
 
-const label = "text-[10px] uppercase tracking-[0.18em] text-stone-600";
 const money = (n: number) => `₦${n.toLocaleString()}`;
+const cap = "text-xs font-semibold uppercase tracking-wider text-neutral-500";
+const lbl = "mb-2 block text-sm font-medium normal-case tracking-normal text-ink";
+const input = (bad?: boolean) =>
+  `w-full rounded-xl border bg-white px-4 py-3.5 text-base normal-case tracking-normal text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-ink/10 ${bad ? "border-red-600" : "border-neutral-300"}`;
 
 function toISO(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -106,7 +103,15 @@ function prettyTime(value: string) {
 }
 
 function Err({ msg }: { msg?: string }) {
-  return msg ? <p role="alert" className="mt-2 text-xs text-red-700">{msg}</p> : null;
+  return msg ? <p role="alert" className="mt-2 text-sm text-red-700">{msg}</p> : null;
+}
+
+function Tick() {
+  return (
+    <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-white">
+      <Check size={14} strokeWidth={3} />
+    </span>
+  );
 }
 
 function Modal({ children, onClose, labelledBy }: { children: React.ReactNode; onClose: () => void; labelledBy: string }) {
@@ -122,18 +127,10 @@ function Modal({ children, onClose, labelledBy }: { children: React.ReactNode; o
     };
   }, [onClose]);
   return (
-    <div className="fade-in fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4" onClick={onClose}>
+    <div className="fade-in fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="flex min-h-full items-center justify-center">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={labelledBy}
-          onClick={(e) => e.stopPropagation()}
-          className="zoom-in relative w-full max-w-xl border border-ink bg-white p-6 md:p-10"
-        >
-          <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center border border-ink/20 text-lg hover:bg-ink hover:text-white">
-            ×
-          </button>
+        <div role="dialog" aria-modal="true" aria-labelledby={labelledBy} onClick={(e) => e.stopPropagation()} className="zoom-in relative w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl md:p-9">
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-lg hover:bg-neutral-200">×</button>
           {children}
         </div>
       </div>
@@ -153,12 +150,12 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const [modal, setModal] = useState<"success" | "error" | null>(null);
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [reference, setReference] = useState("");
   const [serverError, setServerError] = useState("");
-  const [toast, setToast] = useState("");
-  const [morePeople, setMorePeople] = useState(false);
-  const [peopleText, setPeopleText] = useState("4");
+  const [copied, setCopied] = useState(false);
+  const [moreInfo, setMoreInfo] = useState(false);
   const wizardRef = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
   const accessToken = useRef<string | null>(null);
@@ -169,11 +166,11 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
     (async () => {
       try {
         const { data } = await getBrowserSupabase().auth.getSession();
-        const session = data.session;
-        if (!active || !session) return;
-        accessToken.current = session.access_token;
-        const name = String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? "");
-        setV((p) => ({ ...p, full_name: p.full_name || name, email: p.email || (session.user.email ?? "") }));
+        const s = data.session;
+        if (!active || !s) return;
+        accessToken.current = s.access_token;
+        const name = String(s.user.user_metadata?.full_name ?? s.user.user_metadata?.name ?? "");
+        setV((p) => ({ ...p, full_name: p.full_name || name, email: p.email || (s.user.email ?? "") }));
       } catch { /* not signed in: book as a guest */ }
     })();
     return () => { active = false; };
@@ -184,19 +181,29 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
   const svc = services.find((s) => s.name === v.service);
   const pkg = svc?.packages.find((p) => p.title === v.package_name);
   const isEvent = v.kind === "event";
-  const isStudioService = v.kind === "rental";
-  const session: Session = isEvent ? "outdoor" : isStudioService ? "studio" : v.session;
-  const locationText =
-    session === "studio" ? `${STUDIO.name}, ${STUDIO.note}` : session === "outdoor" ? v.address.trim() : "";
+  const isRental = v.kind === "rental";
+  const session: Session = isEvent ? "outdoor" : isRental ? "studio" : v.session;
+  const locationText = session === "studio" ? `${STUDIO.name}, ${STUDIO.note}` : session === "outdoor" ? v.address.trim() : "";
   const included = pkg ? parseInt(pkg.title, 10) || 1 : 1;
   const picturesWanted = parseInt(v.pictures, 10);
   const occasionText = v.occasion === "Other" ? v.occasion_other.trim() : v.occasion;
-  const sessionLabel = isEvent ? "At your event venue" : session === "studio" ? "Inside the studio" : session === "outdoor" ? "Outdoor" : "";
   const price = pkg?.price ?? 0;
-  const balance = Math.max(price - DEPOSIT_NGN, 0);
-  const packageLabel = isEvent ? "Price quoted after booking" : v.package_name;
-  const balanceText = isEvent ? "After your quote" : pkg ? money(balance) : "—";
-  const priceText = isEvent ? "Quoted on WhatsApp" : pkg ? money(price) : "—";
+  // Extra pictures cost the same as the single-picture price of the chosen service (svc.from).
+  const unit = v.kind === "portrait" ? svc?.from ?? 0 : 0;
+  const wanted = v.kind === "portrait" && Number.isInteger(picturesWanted) && picturesWanted > included ? picturesWanted : included;
+  const extraCount = wanted - included;
+  const extraCost = extraCount * unit;
+  const total = price + extraCost;
+  const balance = Math.max(total - DEPOSIT_NGN, 0);
+  const setPictures = (n: number) => set("pictures", n <= included ? "" : String(Math.min(n, MAX_PICTURES)));
+
+  const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return toISO(d); })();
+  const quickDates = Array.from({ length: QUICK_DAYS }, (_, i) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1 + i);
+    return { iso: toISO(d), wd: d.toLocaleDateString("en-GB", { weekday: "short" }), day: d.getDate(), mon: d.toLocaleDateString("en-GB", { month: "short" }), closed: CLOSED_WEEKDAYS.includes(d.getDay()) };
+  });
 
   const chooseKind = (k: Exclude<Kind, "">) => {
     setV((p) => ({
@@ -211,29 +218,21 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
     }));
     setErrors({});
   };
-  const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return toISO(d); })();
 
   const set = <K extends keyof Form>(k: K, value: Form[K]) => {
     setV((prev) => ({ ...prev, [k]: value }));
     if (errors[k]) setErrors((prev) => { const n = { ...prev }; delete n[k]; return n; });
   };
 
-  // Bring the new step into view
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
     wizardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(""), 4500);
-    return () => clearTimeout(t);
-  }, [toast]);
-
   function validate(s: number) {
     const e: Record<string, string> = {};
     if (s === 0) {
-      if (!v.kind) e.kind = "Choose what you are booking.";
+      if (!v.kind) e.kind = "Please choose one option.";
       else if (v.kind === "event") {
         if (!v.occasion) e.occasion = "Choose the type of event.";
         else if (v.occasion === "Other" && v.occasion_other.trim().length < 2) e.occasion_other = "Tell us what the event is.";
@@ -246,28 +245,22 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
       }
     }
     if (s === 1) {
-      if (!session) e.session = "Choose studio or outdoor.";
-      if (session === "outdoor" && v.address.trim().length < 5) e.address = isEvent ? "Enter the event venue, and the area or city." : "Enter the venue or place, and the area or city.";
-    }
-    if (s === 2) {
-      if (!v.event_date) e.event_date = "Pick your preferred date.";
+      if (!v.event_date) e.event_date = "Pick a date.";
       else if (v.event_date < tomorrow) e.event_date = "Pick a date from tomorrow onwards.";
       else if (CLOSED_WEEKDAYS.includes(new Date(`${v.event_date}T00:00:00`).getDay())) e.event_date = "We are closed on that day. Please pick another date.";
       if (!v.event_time) e.event_time = "Pick a start time.";
+      if (!session) e.session = "Choose studio or outdoor.";
+      if (session === "outdoor" && v.address.trim().length < 5) e.address = isEvent ? "Enter the venue and the area or city." : "Enter the place and the area or city.";
       if (!isEvent && (!Number.isInteger(v.people) || v.people < 1 || v.people > MAX_PEOPLE)) e.people = `Enter a group size between 1 and ${MAX_PEOPLE}.`;
     }
-    if (s === 3) {
+    if (s === 2) {
       if (v.full_name.trim().length < 2) e.full_name = "Enter your full name.";
       if (!/^\S+@\S+\.\S+$/.test(v.email)) e.email = "Enter a valid email address.";
       if (!/^[+\d][\d\s-]{8,}$/.test(v.phone.trim())) e.phone = "Enter a valid phone or WhatsApp number.";
-    }
-    if (s === 4) {
-      if (!v.terms) e.terms = "Please accept the terms to confirm your booking.";
+      if (!v.terms) e.terms = "Please tick the box to confirm.";
     }
     setErrors(e);
-    const n = Object.keys(e).length;
-    if (n) setToast(n === 1 ? "One detail needs your attention." : `${n} details need your attention.`);
-    return n === 0;
+    return Object.keys(e).length === 0;
   }
 
   const back = () => { setErrors({}); setStep((s) => Math.max(s - 1, 0)); };
@@ -283,171 +276,112 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
       const r = await createBooking({
         full_name: v.full_name, email: v.email, phone: v.phone, instagram: v.instagram,
         service: v.service, package_name: isEvent ? "" : v.package_name, session_type: session === "outdoor" ? "outdoor" : "studio",
-        people: isEvent ? 1 : v.people, event_type: isEvent ? occasionText : "", pictures: v.kind === "portrait" && v.pictures.trim() ? picturesWanted : null, event_date: v.event_date, event_time: v.event_time, location: locationText,
+        people: isEvent ? 1 : v.people, event_type: isEvent ? occasionText : "", pictures: v.kind === "portrait" && v.pictures.trim() ? picturesWanted : null,
+        event_date: v.event_date, event_time: v.event_time, location: locationText,
         notes: v.notes, terms: v.terms, access_token: accessToken.current,
       });
-      if (r.ok) { setReference(r.reference); setModal("success"); }
-      else { setServerError(r.error); setModal("error"); }
+      if (r.ok && r.payUrl) { setRedirecting(true); window.location.href = r.payUrl; return; }
+      if (r.ok) { setReference(r.reference); wizardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      else { setServerError(r.error); setErrorOpen(true); }
     } catch {
       setServerError("We could not reach the server. Check your internet connection and try again.");
-      setModal("error");
+      setErrorOpen(true);
     } finally {
       setBusy(false);
     }
   }
 
-  // Enter key and the Continue button both come through here
   function onSubmit(ev: React.FormEvent) {
     ev.preventDefault();
     if (step === LAST) { void submit(); return; }
     if (validate(step)) setStep(step + 1);
   }
 
-  const waText = encodeURIComponent(
-    `Hello Danny, I just requested booking ${reference} (${isEvent ? `${occasionText} event` : `${v.service}, ${v.package_name}`}) for ${prettyDate(v.event_date)} at ${prettyTime(v.event_time)}. I am sending my ${money(DEPOSIT_NGN)} deposit receipt.`
-  );
   const waHelp = encodeURIComponent("Hello Danny, I need help with my booking.");
 
-  const summaryRows: [string, string][] = [
-    ["Service", v.service],
-    ...(isEvent ? ([["Event", occasionText]] as [string, string][]) : []),
-    ["Package", packageLabel],
-    ...(v.kind === "portrait" && v.pictures.trim() && Number.isInteger(picturesWanted) ? ([["Pictures", String(picturesWanted)]] as [string, string][]) : []),
-    ["Session", sessionLabel],
-    ["Location", locationText],
-    ["Date", prettyDate(v.event_date)],
-    ["Start time", v.event_time ? prettyTime(v.event_time) : ""],
-    ...(v.kind && !isEvent ? ([["People", String(v.people)]] as [string, string][]) : []),
-  ];
-
-  function SuccessModal() {
-    return (
-      <Modal onClose={() => setModal(null)} labelledBy="success-title">
-        <div className="flex items-center justify-between gap-4 pr-10">
-          <p className={label}>Reservation dispatch notice</p>
-          <span className="bg-ink px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white">Awaiting deposit</span>
-        </div>
-        <h2 id="success-title" className="display mt-4 text-3xl uppercase md:text-4xl">Booking request received.</h2>
-        <p className="mt-3 text-sm">Reference code: <strong>{reference}</strong></p>
-
-        <dl className="mt-6 divide-y divide-ink/10 border border-ink/10 bg-stone-100 text-sm">
-          {summaryRows.filter(([, val]) => val).map(([k, val]) => (
-            <div key={k} className="flex justify-between gap-4 px-4 py-2.5">
-              <dt className={label}>{k}</dt>
-              <dd className="text-right">{val}</dd>
-            </div>
-          ))}
-          <div className="flex justify-between gap-4 px-4 py-2.5">
-            <dt className={label}>Deposit due now</dt>
-            <dd className="font-medium">{money(DEPOSIT_NGN)}</dd>
-          </div>
-          <div className="flex justify-between gap-4 px-4 py-2.5">
-            <dt className={label}>Balance on the day</dt>
-            <dd>{isEvent ? "After your quote" : money(balance)}</dd>
-          </div>
-        </dl>
-
-        <div className="mt-6 border border-ink/10 p-4 text-sm">
-          <p className={label}>How to pay the deposit</p>
-          {PAYMENT.accountNumber ? (
-            <dl className="mt-3 space-y-1">
-              <div className="flex justify-between gap-4"><dt className="text-stone-600">Bank</dt><dd>{PAYMENT.bank}</dd></div>
-              <div className="flex justify-between gap-4"><dt className="text-stone-600">Account name</dt><dd>{PAYMENT.accountName}</dd></div>
-              <div className="flex justify-between gap-4"><dt className="text-stone-600">Account number</dt><dd>{PAYMENT.accountNumber}</dd></div>
-              <div className="flex justify-between gap-4"><dt className="text-stone-600">Narration</dt><dd>{reference}</dd></div>
-            </dl>
-          ) : (
-            <p className="mt-2 text-stone-600">We will send the payment details to you on WhatsApp or email shortly.</p>
-          )}
-          <p className="mt-3 text-xs text-stone-600">After paying, send your receipt on WhatsApp with your reference code.</p>
-        </div>
-
-        <p className="mt-5 text-xs text-stone-600">We will confirm on WhatsApp or email within 24 hours.</p>
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <a href={`${site.whatsapp}?text=${waText}`} className="btn-dark flex-1">Send receipt on WhatsApp</a>
-          <Link href="/" className="btn flex-1 border border-ink hover:bg-ink hover:text-white">Back to home</Link>
-        </div>
-      </Modal>
-    );
-  }
-
-  /* ---------------- Confirmation (after booking) ---------------- */
+  /* ---------------- Saved, but payment page did not open ---------------- */
   if (reference) {
     return (
-      <>
-        <div role="status" className="border border-ink/10 p-8 md:p-12">
-          <p className={label}>Reservation dispatch notice</p>
-          <h2 className="display mt-4 text-3xl uppercase md:text-5xl">Booking request received.</h2>
-          <p className="mt-4 text-sm">Reference code: <strong>{reference}</strong></p>
-          <p className="mt-4 max-w-md text-sm text-stone-600">
-            Your date is not confirmed until the {money(DEPOSIT_NGN)} deposit is paid. Keep your reference code safe.
-          </p>
-          <button type="button" onClick={() => setModal("success")} className="btn-dark mt-8">View payment details</button>
+      <div ref={wizardRef} className="step-in mx-auto max-w-xl scroll-mt-24 rounded-3xl border border-neutral-200 bg-white p-6 text-center shadow-sm md:p-10">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-ink text-white"><Check size={30} strokeWidth={3} /></div>
+        <h2 className="mt-6 text-3xl font-semibold tracking-tight md:text-4xl">Request saved</h2>
+        <p className="mt-2 text-neutral-600">Pay the {money(DEPOSIT_NGN)} deposit to hold your date.</p>
+
+        <div className="mt-6 rounded-2xl bg-neutral-100 p-5">
+          <p className={cap}>Your reference code</p>
+          <div className="mt-2 flex items-center justify-center gap-3">
+            <span className="text-2xl font-semibold tracking-wider">{reference}</span>
+            <button
+              type="button"
+              onClick={() => { void navigator.clipboard?.writeText(reference); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+              className="flex h-9 items-center gap-1.5 rounded-full bg-white px-3 text-xs font-medium shadow-sm hover:bg-neutral-50"
+              aria-label="Copy reference code"
+            >
+              {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+            </button>
+          </div>
         </div>
-        {modal === "success" && <SuccessModal />}
-      </>
+
+        <div className="mt-8"><PayButton reference={reference} label={`Pay ${money(DEPOSIT_NGN)} deposit`} /></div>
+        <p className="mt-4 text-sm text-neutral-500">Secure payment by Paystack. Card, bank transfer or USSD.</p>
+        <a href={`${site.whatsapp}?text=${waHelp}`} className="mt-6 inline-flex items-center gap-2 text-sm font-medium underline underline-offset-4"><MessageCircle size={16} /> Need help? Chat with us</a>
+      </div>
     );
   }
 
   /* ---------------- Wizard ---------------- */
-  const optionCls = (on: boolean) =>
-    `block w-full border p-4 text-left transition-colors md:p-5 ${on ? "border-ink bg-white outline outline-1 outline-ink" : "border-ink/15 hover:border-ink/50"}`;
-  const current =
-    isEvent && step === 1
-      ? { name: "Session type", title: "Where is the event?", hint: "Tell us the venue and the area or city." }
-      : steps[step];
+  const card = (on: boolean) =>
+    `relative block w-full rounded-2xl border-2 p-4 text-left transition md:p-5 ${on ? "border-ink bg-neutral-50 shadow-sm" : "border-neutral-200 bg-white hover:border-neutral-400"}`;
+  const chip = (on: boolean) =>
+    `rounded-full px-5 py-3 text-sm font-medium transition ${on ? "bg-ink text-white" : "border border-neutral-300 bg-white hover:border-ink"}`;
+  const current = isEvent && step === 1 ? { ...steps[1], hint: "Choose a day, a time and the venue." } : steps[step];
+
+  const kinds = [
+    { k: "portrait", name: "Portraits", note: "Children, one year olds and adults", from: `From ${money(Math.min(...portraitServices.map((x) => x.from)))}`, Icon: Camera },
+    { k: "event", name: "Events", note: "Weddings, birthdays and more", from: "Quote on WhatsApp", Icon: PartyPopper },
+    { k: "rental", name: "Studio rental", note: "Hire our studio by the hour", from: `From ${money(rentalService.from)}`, Icon: Building2 },
+  ] as const;
 
   return (
     <>
-      <div className="grid gap-10 lg:grid-cols-[1fr_22rem] lg:gap-14">
+      <div className="mx-auto max-w-2xl">
         <div ref={wizardRef} className="scroll-mt-24">
           {/* Progress */}
-          <div>
-            <div className="flex items-baseline justify-between">
-              <p className={label}>Step {step + 1} of {steps.length}</p>
-              <p className="text-xs font-medium uppercase tracking-wide">{current.name}</p>
-            </div>
-            <div className="mt-3 flex gap-1.5" role="progressbar" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={step + 1} aria-label="Booking progress">
-              {steps.map((s, i) => (
-                <button
-                  key={s.name}
-                  type="button"
-                  onClick={() => goTo(i)}
-                  disabled={i >= step}
-                  aria-label={`${s.name}${i < step ? " (completed, go back)" : ""}`}
-                  className={`h-1 flex-1 transition-colors ${i <= step ? "bg-ink" : "bg-ink/10"} ${i < step ? "cursor-pointer hover:bg-stone-600" : "cursor-default"}`}
-                />
-              ))}
-            </div>
-            <ol className="mt-3 hidden justify-between md:flex">
-              {steps.map((s, i) => (
-                <li key={s.name} className={`text-[10px] uppercase tracking-[0.14em] ${i === step ? "font-medium text-ink" : i < step ? "text-stone-600" : "text-stone-400"}`}>
-                  {i < step ? "✓ " : ""}{s.name}
+          <ol className="flex items-center" aria-label="Booking progress">
+            {steps.map((s, i) => {
+              const done = i < step;
+              const active = i === step;
+              return (
+                <li key={s.name} className={`flex items-center ${i < LAST ? "flex-1" : ""}`}>
+                  <button type="button" onClick={() => goTo(i)} disabled={!done} aria-current={active ? "step" : undefined} className="flex items-center gap-2.5 disabled:cursor-default">
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition ${done || active ? "bg-ink text-white" : "bg-neutral-200 text-neutral-500"}`}>
+                      {done ? <Check size={16} strokeWidth={3} /> : i + 1}
+                    </span>
+                    <span className={`hidden text-sm font-medium sm:block ${active ? "text-ink" : "text-neutral-500"}`}>{s.name}</span>
+                  </button>
+                  {i < LAST && <span className={`mx-3 h-0.5 flex-1 rounded transition-colors ${done ? "bg-ink" : "bg-neutral-200"}`} />}
                 </li>
-              ))}
-            </ol>
-          </div>
+              );
+            })}
+          </ol>
+          <p className="mt-3 text-sm font-medium text-neutral-500 sm:hidden">Step {step + 1} of {steps.length}: {current.name}</p>
 
-          {/* Current step only */}
-          <form key={step} onSubmit={onSubmit} noValidate className="step-in mt-8 border border-ink/10 p-5 md:p-10">
-            <h2 className="display text-3xl uppercase md:text-4xl">{current.title}</h2>
-            <p className="mt-2 text-sm text-stone-600">{current.hint}</p>
+          <form key={step} onSubmit={onSubmit} noValidate className="step-in mt-6 rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm md:p-9">
+            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{current.title}</h2>
+            <p className="mt-1.5 text-neutral-600">{current.hint}</p>
 
-            <div className="mt-8">
-              {/* 1. What are you booking */}
+            <div className="mt-7">
+              {/* ---------- STEP 1 ---------- */}
               {step === 0 && (
                 <>
                   <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="What are you booking">
-                    {([
-                      { k: "portrait", name: "Studio portraits", note: "Children, one year old and adults. Priced by number of pictures.", from: `From ${money(Math.min(...portraitServices.map((x) => x.from)))}` },
-                      { k: "event", name: "Events", note: "Weddings, birthdays and other occasions. Priced per event.", from: "Price quoted for your event" },
-                      { k: "rental", name: "Studio rental", note: "Hire our studio space by the hour.", from: `From ${money(rentalService.from)}` },
-                    ] as const).map((o) => (
-                      <button key={o.k} type="button" role="radio" aria-checked={v.kind === o.k} onClick={() => chooseKind(o.k)} className={optionCls(v.kind === o.k)}>
-                        <span className="block text-sm font-medium uppercase tracking-wide">{o.name}</span>
-                        <span className="mt-1 block text-xs text-stone-600">{o.note}</span>
-                        <span className={`mt-4 block ${label}`}>{o.from}</span>
+                    {kinds.map(({ k, name, note, from, Icon }) => (
+                      <button key={k} type="button" role="radio" aria-checked={v.kind === k} onClick={() => chooseKind(k)} className={card(v.kind === k)}>
+                        {v.kind === k && <Tick />}
+                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-ink text-white"><Icon size={22} /></span>
+                        <span className="mt-4 block text-lg font-semibold">{name}</span>
+                        <span className="mt-1 block text-sm text-neutral-600">{note}</span>
+                        <span className="mt-3 block text-sm font-medium">{from}</span>
                       </button>
                     ))}
                   </div>
@@ -455,20 +389,14 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
 
                   {v.kind === "portrait" && (
                     <div className="mt-8">
-                      <p className={label}>Who is the session for?</p>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Portrait type">
+                      <p className="mb-3 text-sm font-medium">Who is it for?</p>
+                      <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Portrait type">
                         {portraitServices.map((x) => (
-                          <button
-                            key={x.slug}
-                            type="button"
-                            role="radio"
-                            aria-checked={v.service === x.name}
-                            onClick={() => { setV((p) => ({ ...p, service: x.name, package_name: "", pictures: "" })); setErrors({}); }}
-                            className={optionCls(v.service === x.name)}
-                          >
-                            <span className="block text-sm font-medium uppercase tracking-wide">{x.name}</span>
-                            <span className="mt-1 block text-xs text-stone-600">{x.subtitle}</span>
-                            <span className={`mt-4 block ${label}`}>From {money(x.from)}</span>
+                          <button key={x.slug} type="button" role="radio" aria-checked={v.service === x.name} onClick={() => { setV((p) => ({ ...p, service: x.name, package_name: "", pictures: "" })); setErrors({}); }} className={card(v.service === x.name)}>
+                            {v.service === x.name && <Tick />}
+                            <span className="text-neutral-700">{x.slug === "adults" ? <User size={20} /> : x.slug === "children" ? <Users size={20} /> : <Baby size={20} />}</span>
+                            <span className="mt-2 block font-semibold">{x.name}</span>
+                            <span className="mt-0.5 block text-sm text-neutral-600">{x.subtitle}</span>
                           </button>
                         ))}
                       </div>
@@ -478,15 +406,14 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
 
                   {(v.kind === "portrait" || v.kind === "rental") && svc && (
                     <div className="mt-8">
-                      <p className={label}>Package for {svc.name}</p>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Package">
+                      <p className="mb-3 text-sm font-medium">{v.kind === "rental" ? "How long do you need the studio?" : "Choose a package"}</p>
+                      <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Package">
                         {svc.packages.map((p) => (
-                          <button key={p.title} type="button" role="radio" aria-checked={v.package_name === p.title} onClick={() => set("package_name", p.title)} className={optionCls(v.package_name === p.title)}>
-                            <span className={`block ${label}`}>{p.tag}</span>
-                            <span className="mt-2 block text-sm font-medium uppercase tracking-wide">{p.title}</span>
-                            <span className="mt-1 block text-2xl font-medium">{money(p.price)}</span>
-                            <span className="mt-2 block text-xs text-stone-600">{p.detail}</span>
-                            <span className={`mt-3 block ${label}`}>Deposit {money(DEPOSIT_NGN)} • Balance {money(Math.max(p.price - DEPOSIT_NGN, 0))}</span>
+                          <button key={p.title} type="button" role="radio" aria-checked={v.package_name === p.title} onClick={() => set("package_name", p.title)} className={card(v.package_name === p.title)}>
+                            {v.package_name === p.title && <Tick />}
+                            <span className="block pr-8 font-semibold">{p.title}</span>
+                            <span className="mt-1 block text-2xl font-semibold tracking-tight">{money(p.price)}</span>
+                            <span className="mt-2 block text-sm text-neutral-600">{p.detail}</span>
                           </button>
                         ))}
                       </div>
@@ -495,260 +422,234 @@ export default function BookingForm({ initialService = "" }: { initialService?: 
                   )}
 
                   {v.kind === "portrait" && pkg && (
-                    <div className="mt-8 max-w-xs">
-                      <label htmlFor="pictures">Need more than {included === 1 ? "1 picture" : `${included} pictures`}? (optional)</label>
-                      <input id="pictures" type="number" inputMode="numeric" min={included + 1} max={MAX_PICTURES} className={`field ${errors.pictures ? "field-error" : ""}`} value={v.pictures} onChange={(e) => set("pictures", e.target.value)} placeholder="Total number of pictures" />
+                    <div className="mt-8">
+                      <p className="mb-3 text-sm font-medium">How many pictures do you want?</p>
+                      <div className="flex flex-wrap items-center gap-4">
+                        <div className="inline-flex items-center gap-3 rounded-full border border-neutral-300 p-1.5">
+                          <button type="button" aria-label="Fewer pictures" onClick={() => setPictures(wanted - 1)} disabled={wanted <= included} className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40"><Minus size={18} /></button>
+                          <input aria-label="Total pictures" type="number" inputMode="numeric" min={included} max={MAX_PICTURES} value={wanted} onChange={(e) => { const n = parseInt(e.target.value, 10); setPictures(Number.isNaN(n) ? included : n); }} className="w-14 bg-transparent text-center text-lg font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                          <button type="button" aria-label="More pictures" onClick={() => setPictures(wanted + 1)} disabled={wanted >= MAX_PICTURES} className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-white hover:bg-neutral-700 disabled:opacity-40"><Plus size={18} /></button>
+                        </div>
+                        <p className="text-sm text-neutral-600">
+                          {extraCount > 0 ? `${included} included + ${extraCount} extra × ${money(unit)}` : `${included} included in this package. Add more if you need them.`}
+                        </p>
+                      </div>
                       <Err msg={errors.pictures} />
-                      <p className="mt-2 text-xs text-stone-600">Extra pictures are priced separately. We will confirm the price with you on WhatsApp.</p>
+                    </div>
+                  )}
+
+                  {pkg && (
+                    <div className="mt-8 rounded-2xl bg-neutral-100 p-5 text-sm">
+                      <dl className="space-y-2">
+                        <div className="flex justify-between"><dt className="text-neutral-600">{v.package_name}</dt><dd className="font-medium">{money(price)}</dd></div>
+                        {extraCount > 0 && <div className="flex justify-between"><dt className="text-neutral-600">{extraCount} extra {extraCount === 1 ? "picture" : "pictures"} × {money(unit)}</dt><dd className="font-medium">{money(extraCost)}</dd></div>}
+                        <div className="flex justify-between border-t border-neutral-300 pt-3 text-base"><dt className="font-semibold">Total</dt><dd className="font-semibold">{money(total)}</dd></div>
+                        <div className="flex justify-between text-neutral-600"><dt>Deposit now</dt><dd>{money(DEPOSIT_NGN)}</dd></div>
+                        <div className="flex justify-between text-neutral-600"><dt>Balance on the day</dt><dd>{money(balance)}</dd></div>
+                      </dl>
                     </div>
                   )}
 
                   {isEvent && (
                     <div className="mt-8">
-                      <p className={label}>What type of event is it? *</p>
-                      <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Type of event">
+                      <p className="mb-3 text-sm font-medium">What kind of event?</p>
+                      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Type of event">
                         {OCCASIONS.map((o) => (
-                          <button key={o} type="button" role="radio" aria-checked={v.occasion === o} onClick={() => set("occasion", o)} className={`px-5 py-3 text-[11px] uppercase tracking-[0.14em] ${v.occasion === o ? "bg-ink text-white" : "border border-ink/20 hover:border-ink"}`}>
-                            {o}
-                          </button>
+                          <button key={o} type="button" role="radio" aria-checked={v.occasion === o} onClick={() => set("occasion", o)} className={chip(v.occasion === o)}>{o}</button>
                         ))}
                       </div>
                       <Err msg={errors.occasion} />
                       {v.occasion === "Other" && (
                         <div className="mt-4 max-w-xs">
-                          <label htmlFor="occasion_other">What is the event? *</label>
-                          <input id="occasion_other" className={`field ${errors.occasion_other ? "field-error" : ""}`} value={v.occasion_other} maxLength={60} onChange={(e) => set("occasion_other", e.target.value)} placeholder="e.g. Graduation" autoFocus />
+                          <label htmlFor="occasion_other" className={lbl}>What is the event?</label>
+                          <input id="occasion_other" className={input(!!errors.occasion_other)} value={v.occasion_other} maxLength={60} onChange={(e) => set("occasion_other", e.target.value)} placeholder="e.g. Graduation" autoFocus />
                           <Err msg={errors.occasion_other} />
                         </div>
                       )}
-                      <p className="mt-5 border border-ink/10 bg-stone-100 p-4 text-xs leading-relaxed text-stone-600">
-                        {EVENT_PRICE_NOTE} Your {money(DEPOSIT_NGN)} deposit holds the date and is deducted from your final bill.
-                      </p>
+                      <p className="mt-5 rounded-2xl bg-neutral-100 p-4 text-sm text-neutral-600">{EVENT_PRICE_NOTE}</p>
                     </div>
                   )}
                 </>
               )}
 
-              {/* 2. Studio or outdoor */}
+              {/* ---------- STEP 2 ---------- */}
               {step === 1 && (
-                <>
-                  {isEvent ? (
-                    <p className="border border-ink/10 bg-stone-100 p-4 text-sm text-stone-600">Events take place at your venue. Tell us where below.</p>
-                  ) : isStudioService ? (
-                    <p className="border border-ink/10 bg-stone-100 p-4 text-sm text-stone-600">Studio rental takes place inside our studio.</p>
-                  ) : (
-                    <>
-                      <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Session type">
-                        <button type="button" role="radio" aria-checked={session === "studio"} onClick={() => { set("session", "studio"); }} className={optionCls(session === "studio")}>
-                          <span className="block text-sm font-medium uppercase tracking-wide">Inside the studio</span>
-                          <span className="mt-1 block text-xs text-stone-600">Controlled daylight, backdrops and lighting in our studio.</span>
-                        </button>
-                        <button type="button" role="radio" aria-checked={session === "outdoor"} onClick={() => { set("session", "outdoor"); }} className={optionCls(session === "outdoor")}>
-                          <span className="block text-sm font-medium uppercase tracking-wide">Outdoor</span>
-                          <span className="mt-1 block text-xs text-stone-600">At a park, venue, home or location of your choice.</span>
-                        </button>
-                      </div>
-                      <Err msg={errors.session} />
-                    </>
-                  )}
-
-                  {session === "outdoor" && (
-                    <div className="mt-8">
-                      <label htmlFor="address">{isEvent ? "Event venue *" : "Outdoor location *"}</label>
-                      <input id="address" className={`field ${errors.address ? "field-error" : ""}`} value={v.address} onChange={(e) => set("address", e.target.value)} placeholder={isEvent ? "Venue and area, e.g. Eko Hotel, Victoria Island" : "Place and area, e.g. Landmark Beach, Victoria Island"} autoFocus />
-                      <Err msg={errors.address} />
-                      <p className="mt-3 text-xs text-stone-600">{isEvent ? "Travel costs for events outside Lagos are included in your quote." : OUTDOOR_NOTE}</p>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* 3. Date & time */}
-              {step === 2 && (
-                <>
-                  <div className="grid gap-7 sm:grid-cols-2">
-                    <div>
-                      <label htmlFor="event_date">Preferred date *</label>
-                      <input id="event_date" type="date" min={tomorrow} className={`field ${errors.event_date ? "field-error" : ""}`} value={v.event_date} onChange={(e) => set("event_date", e.target.value)} />
-                      <Err msg={errors.event_date} />
-                    </div>
-                    <div>
-                      <label htmlFor="event_time">Start time *</label>
-                      <select id="event_time" className={`field ${errors.event_time ? "field-error" : ""}`} value={v.event_time} onChange={(e) => set("event_time", e.target.value)}>
-                        <option value="">Select a time</option>
-                        {times.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      </select>
-                      <Err msg={errors.event_time} />
-                    </div>
-                  </div>
-                  {!isEvent && (
-                  <div className="mt-8">
-                    <p className={label}>How many people will be in the session?</p>
-                    <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Number of people">
-                      {[1, 2, 3].map((n) => {
-                        const on = n === 3 ? v.people >= 3 || morePeople : !morePeople && v.people === n;
+                <div className="space-y-9">
+                  {/* Date */}
+                  <div>
+                    <p className="mb-3 text-sm font-medium">Pick a day</p>
+                    <div className="-mx-5 flex gap-2.5 overflow-x-auto px-5 pb-2 md:mx-0 md:px-0" role="radiogroup" aria-label="Date">
+                      {quickDates.map((d) => {
+                        const on = v.event_date === d.iso;
                         return (
-                          <button key={n} type="button" role="radio" aria-checked={on} onClick={() => { setMorePeople(n === 3); if (n === 3) setPeopleText("3"); set("people", n); }} className={`px-5 py-3 text-[11px] uppercase tracking-[0.14em] ${on ? "bg-ink text-white" : "border border-ink/20 hover:border-ink"}`}>
-                            {n === 1 ? "1 person" : n === 2 ? "2 people" : "3+ group"}
+                          <button key={d.iso} type="button" role="radio" aria-checked={on} disabled={d.closed} onClick={() => set("event_date", d.iso)}
+                            className={`flex w-[4.25rem] shrink-0 flex-col items-center rounded-2xl border-2 py-3 transition disabled:cursor-not-allowed disabled:opacity-35 ${on ? "border-ink bg-ink text-white" : "border-neutral-200 bg-white hover:border-neutral-400"}`}>
+                            <span className="text-xs uppercase tracking-wide opacity-70">{d.wd}</span>
+                            <span className="text-2xl font-semibold leading-tight">{d.day}</span>
+                            <span className="text-xs opacity-70">{d.mon}</span>
                           </button>
                         );
                       })}
                     </div>
-                    {morePeople && (
-                      <div className="mt-4 max-w-[12rem]">
-                        <label htmlFor="people_count">Exact number of people</label>
-                        <input
-                          id="people_count"
-                          type="number"
-                          inputMode="numeric"
-                          min={3}
-                          max={MAX_PEOPLE}
-                          className={`field ${errors.people ? "field-error" : ""}`}
-                          value={peopleText}
-                          onChange={(e) => {
-                            setPeopleText(e.target.value);
-                            const n = parseInt(e.target.value, 10);
-                            set("people", Number.isNaN(n) ? 0 : n);
-                          }}
-                        />
+                    <div className="mt-3 flex items-center gap-3">
+                      <label htmlFor="event_date" className="mb-0 text-sm font-normal normal-case tracking-normal text-neutral-600">Another date?</label>
+                      <input id="event_date" type="date" min={tomorrow} className="rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm normal-case tracking-normal outline-none focus:border-ink" value={v.event_date} onChange={(e) => set("event_date", e.target.value)} />
+                    </div>
+                    <Err msg={errors.event_date} />
+                  </div>
+
+                  {/* Time */}
+                  <div>
+                    <p className="mb-3 text-sm font-medium">Start time</p>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Start time">
+                      {times.map((t) => {
+                        const on = v.event_time === t.value;
+                        return (
+                          <button key={t.value} type="button" role="radio" aria-checked={on} onClick={() => set("event_time", t.value)}
+                            className={`rounded-xl border-2 py-3 text-sm font-medium transition ${on ? "border-ink bg-ink text-white" : "border-neutral-200 bg-white hover:border-neutral-400"}`}>
+                            {t.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Err msg={errors.event_time} />
+                  </div>
+
+                  {/* Place */}
+                  <div>
+                    <p className="mb-3 text-sm font-medium">{isEvent ? "Where is the event?" : "Where should we shoot?"}</p>
+                    {isRental ? (
+                      <div className="flex items-start gap-3 rounded-2xl bg-neutral-100 p-4 text-sm">
+                        <MapPin size={18} className="mt-0.5 shrink-0" /> <span>Studio rental happens inside our studio, {STUDIO.name}, {STUDIO.note}.</span>
+                      </div>
+                    ) : !isEvent ? (
+                      <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Session type">
+                        {([
+                          { s: "studio", name: "In the studio", note: "Backdrops and lighting, all set up for you." },
+                          { s: "outdoor", name: "Outdoor", note: "A park, venue, home or place you choose." },
+                        ] as const).map((o) => (
+                          <button key={o.s} type="button" role="radio" aria-checked={session === o.s} onClick={() => set("session", o.s)} className={card(session === o.s)}>
+                            {session === o.s && <Tick />}
+                            <span className="block pr-8 font-semibold">{o.name}</span>
+                            <span className="mt-1 block text-sm text-neutral-600">{o.note}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <Err msg={errors.session} />
+                    {session === "outdoor" && (
+                      <div className="mt-4">
+                        <label htmlFor="address" className={lbl}>{isEvent ? "Venue and area" : "Place and area"}</label>
+                        <input id="address" className={input(!!errors.address)} value={v.address} onChange={(e) => set("address", e.target.value)} placeholder={isEvent ? "e.g. Eko Hotel, Victoria Island" : "e.g. Landmark Beach, Victoria Island"} />
+                        <Err msg={errors.address} />
+                        <p className="mt-2 text-sm text-neutral-600">{isEvent ? "Travel costs for events outside Lagos are included in your quote." : OUTDOOR_NOTE}</p>
                       </div>
                     )}
-                    <Err msg={errors.people} />
-                    {morePeople && <p className="mt-2 text-xs text-stone-600">Larger groups may affect the price. We will confirm with you on WhatsApp.</p>}
                   </div>
-                  )}
-                </>
-              )}
 
-              {/* 4. Details */}
-              {step === 3 && (
-                <div className="grid gap-7 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <label htmlFor="full_name">Full name *</label>
-                    <input id="full_name" autoComplete="name" autoFocus className={`field ${errors.full_name ? "field-error" : ""}`} value={v.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="e.g. Oluwaseun Adeleke" />
-                    <Err msg={errors.full_name} />
-                  </div>
-                  <div>
-                    <label htmlFor="email">Email *</label>
-                    <input id="email" type="email" autoComplete="email" className={`field ${errors.email ? "field-error" : ""}`} value={v.email} onChange={(e) => set("email", e.target.value)} placeholder="name@domain.com" />
-                    <Err msg={errors.email} />
-                  </div>
-                  <div>
-                    <label htmlFor="phone">Phone / WhatsApp *</label>
-                    <input id="phone" type="tel" autoComplete="tel" className={`field ${errors.phone ? "field-error" : ""}`} value={v.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+234 …" />
-                    <Err msg={errors.phone} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="instagram">Instagram (optional)</label>
-                    <input id="instagram" className="field" value={v.instagram} onChange={(e) => set("instagram", e.target.value)} placeholder="@yourhandle" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="notes">Notes (optional)</label>
-                    <textarea id="notes" rows={4} className="field" value={v.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Mood, outfits, references, anything I should know" />
-                  </div>
+                  {/* People */}
+                  {!isEvent && (
+                    <div>
+                      <p className="mb-3 text-sm font-medium">How many people?</p>
+                      <div className="inline-flex items-center gap-4 rounded-full border border-neutral-300 p-1.5">
+                        <button type="button" aria-label="Fewer people" onClick={() => set("people", Math.max(1, v.people - 1))} disabled={v.people <= 1} className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40"><Minus size={18} /></button>
+                        <span className="w-8 text-center text-lg font-semibold" aria-live="polite">{v.people}</span>
+                        <button type="button" aria-label="More people" onClick={() => set("people", Math.min(MAX_PEOPLE, v.people + 1))} disabled={v.people >= MAX_PEOPLE} className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-white hover:bg-neutral-700 disabled:opacity-40"><Plus size={18} /></button>
+                      </div>
+                      <Err msg={errors.people} />
+                      {v.people >= 3 && <p className="mt-2 text-sm text-neutral-600">Larger groups may affect the price. We confirm with you on WhatsApp.</p>}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* 5. Review */}
-              {step === 4 && (
-                <>
-                  <dl className="divide-y divide-ink/10 border border-ink/10 text-sm">
-                    {[...summaryRows, ["Name", v.full_name], ["Email", v.email], ["Phone", v.phone]].filter(([, val]) => val).map(([k, val]) => (
-                      <div key={k} className="flex justify-between gap-4 px-4 py-2.5">
-                        <dt className={label}>{k}</dt>
-                        <dd className="break-words text-right">{val}</dd>
-                      </div>
-                    ))}
-                    <div className="flex justify-between gap-4 bg-stone-100 px-4 py-3">
-                      <dt className={label}>Deposit due now</dt>
-                      <dd className="font-medium">{money(DEPOSIT_NGN)}</dd>
-                    </div>
-                  </dl>
-
-                  <div className="mt-6 border border-ink/10 bg-stone-100 p-5">
-                    <p className={label}>Studio terms</p>
-                    <ul className="mt-3 space-y-3 text-xs leading-relaxed text-stone-600">
-                      {terms.map((t) => (
-                        <li key={t.t}><strong className="font-medium text-ink">{t.t}.</strong> {t.d}</li>
-                      ))}
-                    </ul>
+              {/* ---------- STEP 3 ---------- */}
+              {step === 2 && (
+                <div className="space-y-5">
+                  <div>
+                    <label htmlFor="full_name" className={lbl}>Full name</label>
+                    <input id="full_name" autoComplete="name" autoFocus className={input(!!errors.full_name)} value={v.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="e.g. Oluwaseun Adeleke" />
+                    <Err msg={errors.full_name} />
+                  </div>
+                  <div>
+                    <label htmlFor="phone" className={lbl}>Phone / WhatsApp</label>
+                    <input id="phone" type="tel" autoComplete="tel" inputMode="tel" className={input(!!errors.phone)} value={v.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+234 …" />
+                    <Err msg={errors.phone} />
+                  </div>
+                  <div>
+                    <label htmlFor="email" className={lbl}>Email</label>
+                    <input id="email" type="email" autoComplete="email" className={input(!!errors.email)} value={v.email} onChange={(e) => set("email", e.target.value)} placeholder="name@email.com" />
+                    <Err msg={errors.email} />
                   </div>
 
-                  <label htmlFor="terms" className="mt-5 flex cursor-pointer items-start gap-3 text-xs normal-case tracking-normal text-ink">
-                    <input id="terms" type="checkbox" checked={v.terms} onChange={(e) => set("terms", e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-black" />
-                    <span>I have read and agree to the terms above, including the {money(DEPOSIT_NGN)} commitment deposit and the rescheduling policy.</span>
-                  </label>
-                  <Err msg={errors.terms} />
-                </>
+                  <div>
+                    <button type="button" onClick={() => setMoreInfo((m) => !m)} aria-expanded={moreInfo} className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-ink">
+                      Add a note or Instagram <span className="text-neutral-400">(optional)</span> <ChevronDown size={16} className={`transition ${moreInfo ? "rotate-180" : ""}`} />
+                    </button>
+                    {moreInfo && (
+                      <div className="fade-in mt-4 space-y-5">
+                        <div>
+                          <label htmlFor="instagram" className={lbl}>Instagram</label>
+                          <input id="instagram" className={input()} value={v.instagram} onChange={(e) => set("instagram", e.target.value)} placeholder="@yourhandle" />
+                        </div>
+                        <div>
+                          <label htmlFor="notes" className={lbl}>Anything we should know?</label>
+                          <textarea id="notes" rows={3} className={input()} value={v.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Mood, outfits, references…" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Deposit + terms */}
+                  <div className="rounded-2xl bg-neutral-100 p-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-semibold">Deposit to hold your date</p>
+                        <p className="text-sm text-neutral-600">Part of your price, not an extra fee. Paid securely with Paystack on the next screen.</p>
+                      </div>
+                      <p className="text-2xl font-semibold">{money(DEPOSIT_NGN)}</p>
+                    </div>
+                    {!isEvent && pkg && (
+                      <p className="mt-3 border-t border-neutral-300 pt-3 text-sm text-neutral-600">Total {money(total)} · Balance on the day {money(balance)}</p>
+                    )}
+                    <label htmlFor="terms" className="mt-5 flex cursor-pointer items-start gap-3 text-sm normal-case tracking-normal text-ink">
+                      <input id="terms" type="checkbox" checked={v.terms} onChange={(e) => set("terms", e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-black" />
+                      <span>I agree to the studio terms and the {money(DEPOSIT_NGN)} deposit.</span>
+                    </label>
+                    <Err msg={errors.terms} />
+                    <details className="mt-3 text-sm">
+                      <summary className="cursor-pointer font-medium text-neutral-600 hover:text-ink">Read the terms</summary>
+                      <ul className="mt-3 space-y-2 text-neutral-600">
+                        {terms.map((t) => (<li key={t.t}><strong className="font-medium text-ink">{t.t}.</strong> {t.d}</li>))}
+                      </ul>
+                    </details>
+                  </div>
+                </div>
               )}
             </div>
 
             {/* Back / Next */}
-            <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="sticky bottom-0 -mx-5 mt-9 flex items-center justify-between gap-3 border-t border-neutral-200 bg-white/90 px-5 py-4 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
               {step > 0 ? (
-                <button type="button" onClick={back} className="py-2 text-left text-[11px] uppercase tracking-[0.16em] text-stone-600 hover:text-ink">← Back</button>
+                <button type="button" onClick={back} className="flex items-center gap-1.5 rounded-full px-4 py-3 text-sm font-medium text-neutral-600 hover:bg-neutral-100 hover:text-ink"><ArrowLeft size={16} /> Back</button>
               ) : <span />}
-              <button type="submit" disabled={busy} className="btn-dark w-full sm:w-auto">
-                {step === LAST ? (busy ? "Sending" : "Confirm booking") : `Next: ${steps[step + 1].name}`}
+              <button type="submit" disabled={busy || redirecting} className="flex items-center justify-center gap-2 rounded-full bg-ink px-8 py-4 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:opacity-50">
+                {step === LAST ? (busy || redirecting ? "Opening payment…" : `Pay ${money(DEPOSIT_NGN)} deposit`) : "Continue"} {step !== LAST && <ArrowRight size={16} />}
               </button>
             </div>
           </form>
         </div>
 
-        {/* Summary */}
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="border border-ink/10 p-5 md:p-6">
-            <div className="flex items-center justify-between">
-              <p className={label}>Your booking</p>
-              <span className={label}>Not yet sent</span>
-            </div>
-            <dl className="mt-4 divide-y divide-ink/10 text-sm">
-              {summaryRows.map(([k, val]) => (
-                <div key={k} className="flex justify-between gap-4 py-2.5">
-                  <dt className={label}>{k}</dt>
-                  <dd className="text-right">{val || <span className="text-stone-400">—</span>}</dd>
-                </div>
-              ))}
-            </dl>
-            <dl className="mt-3 space-y-2 border-t border-ink pt-4 text-sm">
-              <div className="flex justify-between"><dt className={label}>Package price</dt><dd>{priceText}</dd></div>
-              <div className="flex justify-between"><dt className={label}>Deposit due now</dt><dd className="font-medium">{money(DEPOSIT_NGN)}</dd></div>
-              <div className="flex justify-between"><dt className={label}>Balance on the day</dt><dd>{balanceText}</dd></div>
-            </dl>
-            <p className="mt-4 border-t border-ink/10 pt-4 text-xs leading-relaxed text-stone-600">
-              Your {money(DEPOSIT_NGN)} deposit is part of the price, not an extra fee. Your date is not confirmed until the deposit is paid.
-            </p>
-          </div>
-          <div className="mt-4 border border-ink/10 p-5 md:p-6">
-            <p className={label}>What happens next</p>
-            <ol className="mt-3 space-y-2 text-xs leading-relaxed text-stone-600">
-              <li>1. Submit your request and get a reference code.</li>
-              <li>2. Pay the {money(DEPOSIT_NGN)} deposit and send your receipt.</li>
-              <li>3. We confirm your date on WhatsApp or email within 24 hours.</li>
-              <li>4. Pay the balance on the day of your session.</li>
-            </ol>
-            <a href={`${site.whatsapp}?text=${waHelp}`} className="mt-4 inline-block text-[11px] uppercase tracking-[0.16em] underline underline-offset-4">Need help? Chat on WhatsApp</a>
-          </div>
-        </aside>
       </div>
 
-      {/* Pop-up: validation message */}
-      {toast && (
-        <div role="alert" className="fade-in fixed bottom-5 left-1/2 z-50 -translate-x-1/2 border border-ink bg-white px-5 py-3 text-xs uppercase tracking-[0.14em] shadow-lg">
-          {toast}
-        </div>
-      )}
-
-      {/* Pop-up: failed */}
-      {modal === "error" && (
-        <Modal onClose={() => setModal(null)} labelledBy="error-title">
-          <p className={label}>Booking not sent</p>
-          <h2 id="error-title" className="display mt-4 text-3xl uppercase md:text-4xl">Something went wrong.</h2>
-          <p role="alert" className="mt-4 text-sm text-stone-600">{serverError}</p>
-          <p className="mt-2 text-sm text-stone-600">Your details are still here, so nothing is lost.</p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={() => setModal(null)} className="btn-dark flex-1">Try again</button>
-            <a href={`${site.whatsapp}?text=${waHelp}`} className="btn flex-1 border border-ink hover:bg-ink hover:text-white">Chat on WhatsApp</a>
+      {errorOpen && (
+        <Modal onClose={() => setErrorOpen(false)} labelledBy="error-title">
+          <h2 id="error-title" className="text-2xl font-semibold tracking-tight">Something went wrong</h2>
+          <p role="alert" className="mt-3 text-neutral-600">{serverError}</p>
+          <p className="mt-2 text-sm text-neutral-500">Your details are still here, nothing is lost.</p>
+          <div className="mt-7 flex flex-col gap-3">
+            <button type="button" onClick={() => setErrorOpen(false)} className="rounded-full bg-ink px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-700">Try again</button>
+            <a href={`${site.whatsapp}?text=${waHelp}`} className="rounded-full border border-neutral-300 px-6 py-3.5 text-center text-sm font-semibold hover:bg-neutral-100">Chat on WhatsApp</a>
           </div>
         </Modal>
       )}

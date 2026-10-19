@@ -2,6 +2,8 @@
 import { randomBytes } from "crypto";
 import { getSupabase, getSupabaseForUser } from "@/lib/supabase";
 import { DEPOSIT_NGN, services } from "@/lib/content";
+import { createPaymentLink } from "@/lib/payments";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export type BookingInput = {
   full_name: string;
@@ -23,7 +25,7 @@ export type BookingInput = {
 };
 
 export type BookingResult =
-  | { ok: true; reference: string; price: number }
+  | { ok: true; reference: string; price: number; payUrl: string | null }
   | { ok: false; error: string };
 
 function makeReference() {
@@ -74,11 +76,17 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
     return { ok: false, error: "Some details are missing or invalid. Please check the form and try again." };
   }
 
+  // Extra pictures cost the single-picture price of the service. The total is worked out here, never trusted from the browser.
+  const included = pkg ? parseInt(pkg.title, 10) || 1 : 1;
+  const extraCount = input.pictures !== null && pkg ? Math.max(input.pictures - included, 0) : 0;
+  const extraCost = extraCount * (service?.from ?? 0);
+  const totalPrice = (pkg?.price ?? 0) + extraCost;
+
   // Event type and extra pictures are stored at the top of the notes, so no database change is needed.
   const noteLines = [
     isEvent ? `Event type: ${input.event_type.trim()}` : "",
     isEvent ? "Price: to be quoted on WhatsApp" : "",
-    input.pictures !== null && pkg ? `Pictures wanted: ${input.pictures} (package includes ${parseInt(pkg.title, 10) || 1}, extras priced separately)` : "",
+    input.pictures !== null && pkg ? `Pictures wanted: ${input.pictures} (package includes ${parseInt(pkg.title, 10) || 1}, ${extraCount} extra x N${service!.from} = N${extraCost}, total N${totalPrice})` : "",
     input.notes.trim(),
   ].filter(Boolean);
   const notes = noteLines.join("\n");
@@ -107,7 +115,7 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
       instagram: input.instagram.trim() || null,
       service: isEvent ? EVENT_SERVICE : service!.name,
       package_name: isEvent ? "Event coverage (price quoted)" : pkg!.title,
-      package_price: isEvent ? null : pkg!.price,
+      package_price: isEvent ? null : totalPrice,
       session_type: input.session_type,
       people: input.people,
       event_date: input.event_date,
@@ -121,5 +129,26 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
   // No .select() here: visitors are not allowed to read bookings back (row level security),
   // so asking for the row would make a successful insert look like a failure.
   if (error) return { ok: false, error: "We could not save your request. Please try again or chat with us on WhatsApp." };
-  return { ok: true, reference, price: pkg?.price ?? 0 };
+  // Send the client to Paystack to pay the deposit. If Paystack is down or not set up yet,
+  // the booking is still saved and the client can tap "Pay deposit" to try again.
+  let payUrl: string | null = null;
+  try { payUrl = await createPaymentLink(reference, input.email.trim()); } catch { payUrl = null; }
+  return { ok: true, reference, price: totalPrice, payUrl };
+}
+
+// Starts (or restarts) the Paystack payment for a saved booking.
+export async function startPayment(reference: string): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  try {
+    const { data: b } = await getSupabaseAdmin()
+      .from("bookings")
+      .select("reference, email, payment_status, status")
+      .eq("reference", reference.trim())
+      .maybeSingle();
+    if (!b) return { ok: false, error: "We could not find that booking." };
+    if (b.payment_status === "paid") return { ok: false, error: "This deposit is already paid." };
+    if (b.status === "cancelled") return { ok: false, error: "This booking was cancelled." };
+    return { ok: true, url: await createPaymentLink(b.reference as string, b.email as string) };
+  } catch {
+    return { ok: false, error: "We could not open the payment page. Please try again or chat with us on WhatsApp." };
+  }
 }
